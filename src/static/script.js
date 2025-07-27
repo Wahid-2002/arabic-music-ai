@@ -534,3 +534,309 @@ window.onclick = function(event) {
         closeEditModal();
     }
 }
+// Training functionality
+let trainingInterval = null;
+let currentTrainingSession = null;
+
+// Check training prerequisites
+function checkTrainingPrerequisites() {
+    const songs = window.allSongs || [];
+    const songsCount = songs.length;
+    const lyricsCount = songs.filter(song => song.lyrics && song.lyrics.trim().length > 0).length;
+    const metadataCount = songs.filter(song => 
+        song.maqam && song.style && song.emotion && song.region && song.tempo
+    ).length;
+    
+    // Update counts
+    document.getElementById('prereq-songs-count').textContent = songsCount;
+    document.getElementById('prereq-lyrics-count').textContent = lyricsCount;
+    document.getElementById('prereq-metadata-count').textContent = metadataCount;
+    
+    // Update status
+    const songsReady = songsCount >= 5; // Minimum 5 songs
+    const lyricsReady = lyricsCount === songsCount && songsCount > 0;
+    const metadataReady = metadataCount === songsCount && songsCount > 0;
+    
+    updatePrereqStatus('songs-status', 'songs-prereq', songsReady);
+    updatePrereqStatus('lyrics-status', 'lyrics-prereq', lyricsReady);
+    updatePrereqStatus('metadata-status', 'metadata-prereq', metadataReady);
+    
+    // Enable/disable training button
+    const canTrain = songsReady && lyricsReady && metadataReady;
+    document.getElementById('start-training-btn').disabled = !canTrain;
+    
+    return canTrain;
+}
+
+function updatePrereqStatus(statusId, itemId, isReady) {
+    const statusEl = document.getElementById(statusId);
+    const itemEl = document.getElementById(itemId);
+    
+    if (isReady) {
+        statusEl.textContent = '✅';
+        itemEl.classList.add('ready');
+    } else {
+        statusEl.textContent = '❌';
+        itemEl.classList.remove('ready');
+    }
+}
+
+// Start training
+async function startTraining() {
+    if (!checkTrainingPrerequisites()) {
+        alert('Please ensure all prerequisites are met before starting training.');
+        return;
+    }
+    
+    const config = {
+        epochs: parseInt(document.getElementById('training-epochs').value),
+        learning_rate: parseFloat(document.getElementById('learning-rate').value),
+        batch_size: parseInt(document.getElementById('batch-size').value),
+        focus_area: document.getElementById('focus-area').value
+    };
+    
+    try {
+        const response = await fetch('/api/training/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            currentTrainingSession = result.session_id;
+            updateTrainingUI('training');
+            startTrainingMonitor();
+        } else {
+            alert('Failed to start training: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Training start error:', error);
+        alert('Failed to start training. Please try again.');
+    }
+}
+
+// Stop training
+async function stopTraining() {
+    if (!currentTrainingSession) return;
+    
+    if (confirm('Are you sure you want to stop training? Progress will be lost.')) {
+        try {
+            const response = await fetch('/api/training/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ session_id: currentTrainingSession })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                stopTrainingMonitor();
+                updateTrainingUI('stopped');
+                currentTrainingSession = null;
+            }
+        } catch (error) {
+            console.error('Training stop error:', error);
+        }
+    }
+}
+
+// Reset model
+async function resetModel() {
+    if (confirm('Are you sure you want to reset the model? All training progress will be lost.')) {
+        try {
+            const response = await fetch('/api/training/reset', {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('Model reset successfully!');
+                updateTrainingUI('ready');
+                loadTrainingHistory();
+            } else {
+                alert('Failed to reset model: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Model reset error:', error);
+            alert('Failed to reset model. Please try again.');
+        }
+    }
+}
+
+// Update training UI
+function updateTrainingUI(status) {
+    const statusIcon = document.getElementById('status-icon');
+    const statusTitle = document.getElementById('status-title');
+    const statusDescription = document.getElementById('status-description');
+    const progressContainer = document.getElementById('progress-container');
+    const metricsContainer = document.getElementById('training-metrics');
+    const startBtn = document.getElementById('start-training-btn');
+    const stopBtn = document.getElementById('stop-training-btn');
+    
+    switch (status) {
+        case 'ready':
+            statusIcon.textContent = '⏸️';
+            statusTitle.textContent = 'Ready to Train';
+            statusDescription.textContent = 'Configure settings and start training when ready';
+            progressContainer.style.display = 'none';
+            metricsContainer.style.display = 'none';
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            break;
+            
+        case 'training':
+            statusIcon.textContent = '🧠';
+            statusTitle.textContent = 'Training in Progress';
+            statusDescription.textContent = 'AI is learning from your Arabic music collection';
+            progressContainer.style.display = 'block';
+            metricsContainer.style.display = 'block';
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            break;
+            
+        case 'completed':
+            statusIcon.textContent = '✅';
+            statusTitle.textContent = 'Training Completed';
+            statusDescription.textContent = 'Model is ready for music generation';
+            progressContainer.style.display = 'none';
+            metricsContainer.style.display = 'none';
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            break;
+            
+        case 'stopped':
+            statusIcon.textContent = '⏹️';
+            statusTitle.textContent = 'Training Stopped';
+            statusDescription.textContent = 'Training was stopped by user';
+            progressContainer.style.display = 'none';
+            metricsContainer.style.display = 'none';
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            break;
+    }
+}
+
+// Start training monitor
+function startTrainingMonitor() {
+    trainingInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/training/status');
+            const data = await response.json();
+            
+            if (data.success) {
+                updateTrainingProgress(data.status);
+                
+                if (data.status.status === 'completed' || data.status.status === 'failed') {
+                    stopTrainingMonitor();
+                    updateTrainingUI(data.status.status);
+                    currentTrainingSession = null;
+                    loadTrainingHistory();
+                }
+            }
+        } catch (error) {
+            console.error('Training monitor error:', error);
+        }
+    }, 2000); // Check every 2 seconds
+}
+
+// Stop training monitor
+function stopTrainingMonitor() {
+    if (trainingInterval) {
+        clearInterval(trainingInterval);
+        trainingInterval = null;
+    }
+}
+
+// Update training progress
+function updateTrainingProgress(status) {
+    const progressFill = document.getElementById('progress-fill');
+    const progressPercentage = document.getElementById('progress-percentage');
+    const progressEta = document.getElementById('progress-eta');
+    const currentEpoch = document.getElementById('current-epoch');
+    const currentLoss = document.getElementById('current-loss');
+    const currentAccuracy = document.getElementById('current-accuracy');
+    
+    if (status.progress !== undefined) {
+        progressFill.style.width = status.progress + '%';
+        progressPercentage.textContent = Math.round(status.progress) + '%';
+    }
+    
+    if (status.eta) {
+        progressEta.textContent = 'ETA: ' + status.eta;
+    }
+    
+    if (status.current_epoch !== undefined) {
+        currentEpoch.textContent = status.current_epoch;
+    }
+    
+    if (status.loss !== undefined) {
+        currentLoss.textContent = status.loss.toFixed(4);
+    }
+    
+    if (status.accuracy !== undefined) {
+        currentAccuracy.textContent = (status.accuracy * 100).toFixed(1) + '%';
+    }
+}
+
+// Load training history
+async function loadTrainingHistory() {
+    try {
+        const response = await fetch('/api/training/history');
+        const data = await response.json();
+        
+        if (data.success) {
+            displayTrainingHistory(data.history);
+        }
+    } catch (error) {
+        console.error('Error loading training history:', error);
+    }
+}
+
+// Display training history
+function displayTrainingHistory(history) {
+    const container = document.getElementById('training-history');
+    
+    if (history.length === 0) {
+        container.innerHTML = '<p>No training sessions yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = history.map(session => `
+        <div class="history-item">
+            <div class="history-info">
+                <strong>Session ${session.id}</strong>  
+
+                <small>Started: ${new Date(session.start_time).toLocaleString()}</small>  
+
+                <small>Epochs: ${session.epochs} | Focus: ${session.focus_area}</small>
+            </div>
+            <div class="history-status status-${session.status}">
+                ${session.status.toUpperCase()}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Initialize training tab when switching to it
+document.addEventListener('DOMContentLoaded', function() {
+    // Add to existing tab click handler
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.getAttribute('data-tab');
+            if (targetTab === 'train') {
+                setTimeout(() => {
+                    checkTrainingPrerequisites();
+                    loadTrainingHistory();
+                }, 100);
+            }
+        });
+    });
+});
