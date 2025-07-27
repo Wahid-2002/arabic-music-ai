@@ -932,3 +932,42 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+// Update the existing tab click handler
+document.addEventListener('DOMContentLoaded', function() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.getAttribute('data-tab');
+            
+            // Remove active class from all tabs and contents
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            btn.classList.add('active');
+            document.getElementById(targetTab).classList.add('active');
+            
+            // Special handling for train tab
+            if (targetTab === 'train') {
+                setTimeout(() => {
+                    checkTrainingPrerequisites();
+                    checkTrainingStatus(); // Check current training status
+                    loadTrainingHistory();
+                }, 100);
+            }
+        });
+    });
+
+    // Rest of your existing DOMContentLoaded code...
+    loadDashboardData();
+    loadSongs();
+    
+    const uploadForm = document.getElementById('upload-form');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', handleUpload);
+    }
+    
+    setupFileUpload();
+});
