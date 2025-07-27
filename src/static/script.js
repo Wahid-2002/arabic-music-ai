@@ -299,3 +299,238 @@ async function deleteSong(songId) {
         }
     }
 }
+// Load songs list with enhanced display
+async function loadSongs() {
+    try {
+        const response = await fetch('/api/songs/list');
+        const data = await response.json();
+        
+        if (data.success) {
+            window.allSongs = data.songs; // Store for filtering
+            displaySongs(data.songs);
+            setupSongFilters();
+        }
+    } catch (error) {
+        console.error('Error loading songs:', error);
+        document.getElementById('songs-container').innerHTML = '<p>Error loading songs. Please refresh the page.</p>';
+    }
+}
+
+// Display songs with enhanced UI
+function displaySongs(songs) {
+    const container = document.getElementById('songs-container');
+    
+    if (songs.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #666; font-size: 1.1rem; padding: 40px;">No songs uploaded yet. Upload your first song to get started!</p>';
+        return;
+    }
+    
+    container.innerHTML = songs.map(song => `
+        <div class="song-item">
+            <div class="song-header">
+                <h3 class="song-title">${song.title}</h3>
+                <div class="song-actions">
+                    <button onclick="openEditModal(${song.id})" class="action-btn edit-btn">
+                        ✏️ Edit
+                    </button>
+                    <button onclick="deleteSong(${song.id})" class="action-btn delete-btn">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+            
+            <div class="song-details">
+                <div class="song-detail">
+                    <strong>Artist</strong>
+                    ${song.artist}
+                </div>
+                <div class="song-detail">
+                    <strong>Maqam</strong>
+                    ${song.maqam}
+                </div>
+                <div class="song-detail">
+                    <strong>Style</strong>
+                    ${song.style}
+                </div>
+                <div class="song-detail">
+                    <strong>Region</strong>
+                    ${song.region}
+                </div>
+                <div class="song-detail">
+                    <strong>Tempo</strong>
+                    ${song.tempo} BPM
+                </div>
+                <div class="song-detail">
+                    <strong>Emotion</strong>
+                    ${song.emotion}
+                </div>
+                ${song.composer ? `
+                <div class="song-detail">
+                    <strong>Composer</strong>
+                    ${song.composer}
+                </div>
+                ` : ''}
+                ${song.poem_bahr ? `
+                <div class="song-detail">
+                    <strong>Poem Bahr</strong>
+                    ${song.poem_bahr}
+                </div>
+                ` : ''}
+            </div>
+            
+            <div class="song-lyrics">
+                <strong>Lyrics:</strong>
+                <div class="lyrics-content">${song.lyrics}</div>
+            </div>
+            
+            <div class="song-meta">
+                <span>Uploaded: ${new Date(song.upload_date).toLocaleDateString()}</span>
+                <span>File size: ${formatFileSize(song.file_size || 0)}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Setup search and filter functionality
+function setupSongFilters() {
+    const searchInput = document.getElementById('search-songs');
+    const maqamFilter = document.getElementById('filter-maqam');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', filterSongs);
+    }
+    
+    if (maqamFilter) {
+        maqamFilter.addEventListener('change', filterSongs);
+    }
+}
+
+// Filter songs based on search and maqam
+function filterSongs() {
+    const searchTerm = document.getElementById('search-songs').value.toLowerCase();
+    const selectedMaqam = document.getElementById('filter-maqam').value;
+    
+    let filteredSongs = window.allSongs || [];
+    
+    // Filter by search term
+    if (searchTerm) {
+        filteredSongs = filteredSongs.filter(song => 
+            song.title.toLowerCase().includes(searchTerm) ||
+            song.artist.toLowerCase().includes(searchTerm) ||
+            song.lyrics.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Filter by maqam
+    if (selectedMaqam) {
+        filteredSongs = filteredSongs.filter(song => song.maqam === selectedMaqam);
+    }
+    
+    displaySongs(filteredSongs);
+}
+
+// Open edit modal
+function openEditModal(songId) {
+    const song = window.allSongs.find(s => s.id === songId);
+    if (!song) return;
+    
+    // Populate form fields
+    document.getElementById('edit-song-id').value = song.id;
+    document.getElementById('edit-title').value = song.title;
+    document.getElementById('edit-artist').value = song.artist;
+    document.getElementById('edit-lyrics').value = song.lyrics;
+    document.getElementById('edit-maqam').value = song.maqam;
+    document.getElementById('edit-style').value = song.style;
+    document.getElementById('edit-tempo').value = song.tempo;
+    document.getElementById('edit-emotion').value = song.emotion;
+    document.getElementById('edit-region').value = song.region;
+    document.getElementById('edit-composer').value = song.composer || '';
+    document.getElementById('edit-poem-bahr').value = song.poem_bahr || '';
+    
+    // Show modal
+    document.getElementById('edit-modal').style.display = 'block';
+    
+    // Setup form submission
+    const editForm = document.getElementById('edit-form');
+    editForm.onsubmit = function(e) {
+        e.preventDefault();
+        saveEditedSong();
+    };
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+}
+
+// Save edited song
+async function saveEditedSong() {
+    const songId = document.getElementById('edit-song-id').value;
+    const formData = new FormData(document.getElementById('edit-form'));
+    
+    const updates = {};
+    for (let [key, value] of formData.entries()) {
+        if (key !== 'song-id') {
+            updates[key] = value;
+        }
+    }
+    
+    try {
+        const response = await fetch(`/api/songs/${songId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updates)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Song updated successfully!');
+            closeEditModal();
+            loadSongs();
+            loadDashboardData();
+        } else {
+            alert('Update failed: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Update error:', error);
+        alert('Update failed. Please try again.');
+    }
+}
+
+// Enhanced delete function
+async function deleteSong(songId) {
+    const song = window.allSongs.find(s => s.id === songId);
+    const songTitle = song ? song.title : 'this song';
+    
+    if (confirm(`Are you sure you want to delete "${songTitle}"? This action cannot be undone.`)) {
+        try {
+            const response = await fetch(`/api/songs/${songId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('Song deleted successfully!');
+                loadSongs();
+                loadDashboardData();
+            } else {
+                alert('Delete failed: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('Delete failed. Please try again.');
+        }
+    }
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('edit-modal');
+    if (event.target === modal) {
+        closeEditModal();
+    }
+}
