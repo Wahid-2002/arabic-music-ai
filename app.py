@@ -81,7 +81,7 @@ def dashboard_stats():
             'stats': {
                 'songs_count': songs_count,
                 'generated_count': 0,
-                'is_training': False,
+                'is_training': 'CURRENT_TRAINING' in app.config,
                 'model_accuracy': 0
             }
         })
@@ -217,20 +217,6 @@ def delete_song(song_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/training/status')
-def training_status():
-    return jsonify({
-        'success': True,
-        'status': 'not_started',
-        'progress': 0
-    })
-
-@app.route('/api/generation/list')
-def generation_list():
-    return jsonify({
-        'success': True,
-        'generated_songs': []
-    })
 # Training endpoints
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
@@ -257,7 +243,7 @@ def start_training():
         # Simulate training start
         session_id = str(uuid.uuid4())
         
-        # Store training session info (in a real app, you'd save this to database)
+        # Store training session info
         app.config['CURRENT_TRAINING'] = {
             'session_id': session_id,
             'status': 'training',
@@ -358,8 +344,6 @@ def get_training_status():
 @app.route('/api/training/history')
 def get_training_history():
     try:
-        # In a real app, you'd fetch this from database
-        # For now, return empty history
         return jsonify({
             'success': True,
             'history': []
@@ -368,50 +352,11 @@ def get_training_history():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
-@app.route('/api/training/stop', methods=['POST'])
-def stop_training():
-    try:
-        return jsonify({
-            'success': True,
-            'message': 'Training stopped successfully!'
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/training/reset', methods=['POST'])
-def reset_training():
-    try:
-        return jsonify({
-            'success': True,
-            'message': 'Model reset successfully!'
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/training/status')
-def training_status():
-    # Simulate training progress
-    import random
+@app.route('/api/generation/list')
+def generation_list():
     return jsonify({
         'success': True,
-        'status': {
-            'status': 'training',
-            'progress': random.randint(0, 100),
-            'current_epoch': random.randint(1, 25),
-            'loss': random.uniform(0.1, 0.5),
-            'accuracy': random.uniform(0.7, 0.95),
-            'eta': '45 minutes'
-        }
-    })
-
-@app.route('/api/training/history')
-def training_history():
-    return jsonify({
-        'success': True,
-        'history': []
+        'generated_songs': []
     })
 
 # Serve uploaded files
