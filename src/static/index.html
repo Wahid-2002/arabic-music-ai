@@ -53,10 +53,28 @@
             </div>
         </div>
 
-        <!-- Upload Tab -->
+               <!-- Upload Tab -->
         <div id="upload" class="tab-content">
             <div class="upload-section">
                 <h2>Upload New Song</h2>
+                
+                <!-- File Upload Area -->
+                <div class="file-upload-area" id="file-upload-area">
+                    <div class="upload-icon">📁</div>
+                    <p>Drag and drop your audio file here, or click to browse</p>
+                    <input type="file" id="audio-file" accept=".mp3,.wav,.flac,.m4a" style="display: none;">
+                    <button type="button" class="browse-btn" onclick="document.getElementById('audio-file').click()">Browse Files</button>
+                </div>
+                
+                <!-- File Selected Display -->
+                <div id="file-selected" class="file-selected" style="display: none;">
+                    <div class="file-info">
+                        <span class="file-name" id="selected-file-name"></span>
+                        <span class="file-size" id="selected-file-size"></span>
+                        <button type="button" class="remove-file" onclick="removeSelectedFile()">✕</button>
+                    </div>
+                </div>
+
                 <form id="upload-form" enctype="multipart/form-data">
                     <div class="form-grid">
                         <div class="form-group">
@@ -144,7 +162,7 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="upload-btn">Upload Song</button>
+                    <button type="submit" class="upload-btn" id="upload-btn" disabled>Upload Song</button>
                 </form>
             </div>
 
@@ -155,6 +173,7 @@
                 </div>
             </div>
         </div>
+
 
         <!-- Train Tab -->
         <div id="train" class="tab-content">
