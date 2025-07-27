@@ -595,6 +595,11 @@ async function startTraining() {
         focus_area: document.getElementById('focus-area').value
     };
     
+    // Disable start button and show loading
+    const startBtn = document.getElementById('start-training-btn');
+    startBtn.disabled = true;
+    startBtn.textContent = '🔄 Starting Training...';
+    
     try {
         const response = await fetch('/api/training/start', {
             method: 'POST',
@@ -610,14 +615,101 @@ async function startTraining() {
             currentTrainingSession = result.session_id;
             updateTrainingUI('training');
             startTrainingMonitor();
+            alert('Training started successfully! Monitor progress below.');
         } else {
             alert('Failed to start training: ' + result.error);
+            startBtn.disabled = false;
+            startBtn.textContent = '🚀 Start Training';
         }
     } catch (error) {
         console.error('Training start error:', error);
-        alert('Failed to start training. Please try again.');
+        alert('Failed to start training. Please check your connection and try again.');
+        startBtn.disabled = false;
+        startBtn.textContent = '🚀 Start Training';
     }
 }
+
+// Enhanced training status check
+async function checkTrainingStatus() {
+    try {
+        const response = await fetch('/api/training/status');
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+            const status = data.status;
+            
+            // Update UI based on current status
+            if (status.status === 'training') {
+                updateTrainingUI('training');
+                updateTrainingProgress(status);
+                if (!trainingInterval) {
+                    startTrainingMonitor();
+                }
+            } else if (status.status === 'completed') {
+                updateTrainingUI('completed');
+                stopTrainingMonitor();
+                alert('Training completed successfully! Your AI model is ready for music generation.');
+            } else if (status.status === 'stopped') {
+                updateTrainingUI('stopped');
+                stopTrainingMonitor();
+            } else {
+                updateTrainingUI('ready');
+                stopTrainingMonitor();
+            }
+        }
+    } catch (error) {
+        console.error('Error checking training status:', error);
+    }
+}
+
+// Enhanced prerequisite checking
+function checkTrainingPrerequisites() {
+    const songs = window.allSongs || [];
+    const songsCount = songs.length;
+    const lyricsCount = songs.filter(song => song.lyrics && song.lyrics.trim().length > 10).length;
+    const metadataCount = songs.filter(song => 
+        song.maqam && song.maqam !== '' &&
+        song.style && song.style !== '' &&
+        song.emotion && song.emotion !== '' &&
+        song.region && song.region !== '' &&
+        song.tempo && song.tempo > 0
+    ).length;
+    
+    // Update counts
+    document.getElementById('prereq-songs-count').textContent = `${songsCount}/5`;
+    document.getElementById('prereq-lyrics-count').textContent = `${lyricsCount}/${songsCount}`;
+    document.getElementById('prereq-metadata-count').textContent = `${metadataCount}/${songsCount}`;
+    
+    // Update status
+    const songsReady = songsCount >= 5;
+    const lyricsReady = lyricsCount === songsCount && songsCount > 0;
+    const metadataReady = metadataCount === songsCount && songsCount > 0;
+    
+    updatePrereqStatus('songs-status', 'songs-prereq', songsReady);
+    updatePrereqStatus('lyrics-status', 'lyrics-prereq', lyricsReady);
+    updatePrereqStatus('metadata-status', 'metadata-prereq', metadataReady);
+    
+    // Enable/disable training button
+    const canTrain = songsReady && lyricsReady && metadataReady;
+    const startBtn = document.getElementById('start-training-btn');
+    if (startBtn) {
+        startBtn.disabled = !canTrain;
+        if (!canTrain) {
+            if (!songsReady) {
+                startBtn.textContent = `🚀 Need ${5 - songsCount} More Songs`;
+            } else if (!lyricsReady) {
+                startBtn.textContent = '🚀 Add Lyrics to All Songs';
+            } else if (!metadataReady) {
+                startBtn.textContent = '🚀 Complete All Metadata';
+            }
+        } else {
+            startBtn.textContent = '🚀 Start Training';
+        }
+    }
+    
+    return canTrain;
+}
+
 
 // Stop training
 async function stopTraining() {
