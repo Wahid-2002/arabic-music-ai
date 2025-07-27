@@ -231,6 +231,68 @@ def generation_list():
         'success': True,
         'generated_songs': []
     })
+# Training endpoints
+@app.route('/api/training/start', methods=['POST'])
+def start_training():
+    try:
+        config = request.json
+        
+        # Simulate training start
+        session_id = str(uuid.uuid4())
+        
+        return jsonify({
+            'success': True,
+            'message': 'Training started successfully!',
+            'session_id': session_id
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/stop', methods=['POST'])
+def stop_training():
+    try:
+        return jsonify({
+            'success': True,
+            'message': 'Training stopped successfully!'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/reset', methods=['POST'])
+def reset_training():
+    try:
+        return jsonify({
+            'success': True,
+            'message': 'Model reset successfully!'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/status')
+def training_status():
+    # Simulate training progress
+    import random
+    return jsonify({
+        'success': True,
+        'status': {
+            'status': 'training',
+            'progress': random.randint(0, 100),
+            'current_epoch': random.randint(1, 25),
+            'loss': random.uniform(0.1, 0.5),
+            'accuracy': random.uniform(0.7, 0.95),
+            'eta': '45 minutes'
+        }
+    })
+
+@app.route('/api/training/history')
+def training_history():
+    return jsonify({
+        'success': True,
+        'history': []
+    })
 
 # Serve uploaded files
 @app.route('/uploads/<filename>')
