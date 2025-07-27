@@ -293,14 +293,146 @@
 
 
 
-        <!-- Train Tab -->
+               <!-- Train Tab -->
         <div id="train" class="tab-content">
-            <h2>Model Training</h2>
-            <div class="training-status">
-                <h3>Training Status</h3>
-                <p id="training-status-text">Not Started</p>
+            <div class="training-container">
+                <h2>🧠 AI Model Training</h2>
+                
+                <!-- Training Prerequisites -->
+                <div class="training-section">
+                    <h3>Training Prerequisites</h3>
+                    <div class="prerequisites-grid">
+                        <div class="prereq-item" id="songs-prereq">
+                            <div class="prereq-icon">🎵</div>
+                            <div class="prereq-text">
+                                <strong>Songs Uploaded</strong>
+                                <span id="prereq-songs-count">0</span>
+                                <small>Minimum: 10 songs recommended</small>
+                            </div>
+                            <div class="prereq-status" id="songs-status">❌</div>
+                        </div>
+                        <div class="prereq-item" id="lyrics-prereq">
+                            <div class="prereq-icon">📝</div>
+                            <div class="prereq-text">
+                                <strong>Arabic Lyrics</strong>
+                                <span id="prereq-lyrics-count">0</span>
+                                <small>All songs must have lyrics</small>
+                            </div>
+                            <div class="prereq-status" id="lyrics-status">❌</div>
+                        </div>
+                        <div class="prereq-item" id="metadata-prereq">
+                            <div class="prereq-icon">🏷️</div>
+                            <div class="prereq-text">
+                                <strong>Complete Metadata</strong>
+                                <span id="prereq-metadata-count">0</span>
+                                <small>Maqam, style, emotion, etc.</small>
+                            </div>
+                            <div class="prereq-status" id="metadata-status">❌</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Configuration -->
+                <div class="training-section">
+                    <h3>Training Configuration</h3>
+                    <div class="training-config">
+                        <div class="config-group">
+                            <label for="training-epochs">Training Epochs</label>
+                            <select id="training-epochs">
+                                <option value="10">10 (Quick - 30 minutes)</option>
+                                <option value="25" selected>25 (Balanced - 1 hour)</option>
+                                <option value="50">50 (Thorough - 2 hours)</option>
+                                <option value="100">100 (Intensive - 4 hours)</option>
+                            </select>
+                        </div>
+                        <div class="config-group">
+                            <label for="learning-rate">Learning Rate</label>
+                            <select id="learning-rate">
+                                <option value="0.001">0.001 (Conservative)</option>
+                                <option value="0.01" selected>0.01 (Balanced)</option>
+                                <option value="0.1">0.1 (Aggressive)</option>
+                            </select>
+                        </div>
+                        <div class="config-group">
+                            <label for="batch-size">Batch Size</label>
+                            <select id="batch-size">
+                                <option value="4">4 (Small dataset)</option>
+                                <option value="8" selected>8 (Medium dataset)</option>
+                                <option value="16">16 (Large dataset)</option>
+                            </select>
+                        </div>
+                        <div class="config-group">
+                            <label for="focus-area">Training Focus</label>
+                            <select id="focus-area">
+                                <option value="melody">Melody Generation</option>
+                                <option value="rhythm">Rhythm Patterns</option>
+                                <option value="harmony">Harmonic Structure</option>
+                                <option value="balanced" selected>Balanced (All aspects)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Status -->
+                <div class="training-section">
+                    <h3>Training Status</h3>
+                    <div class="training-status-card" id="training-status-card">
+                        <div class="status-header">
+                            <div class="status-icon" id="status-icon">⏸️</div>
+                            <div class="status-text">
+                                <h4 id="status-title">Ready to Train</h4>
+                                <p id="status-description">Configure settings and start training when ready</p>
+                            </div>
+                        </div>
+                        <div class="progress-container" id="progress-container" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill"></div>
+                            </div>
+                            <div class="progress-text">
+                                <span id="progress-percentage">0%</span>
+                                <span id="progress-eta">ETA: --</span>
+                            </div>
+                        </div>
+                        <div class="training-metrics" id="training-metrics" style="display: none;">
+                            <div class="metric">
+                                <label>Current Epoch:</label>
+                                <span id="current-epoch">0</span>
+                            </div>
+                            <div class="metric">
+                                <label>Loss:</label>
+                                <span id="current-loss">--</span>
+                            </div>
+                            <div class="metric">
+                                <label>Accuracy:</label>
+                                <span id="current-accuracy">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Actions -->
+                <div class="training-actions">
+                    <button id="start-training-btn" class="training-btn start-btn" onclick="startTraining()" disabled>
+                        🚀 Start Training
+                    </button>
+                    <button id="stop-training-btn" class="training-btn stop-btn" onclick="stopTraining()" style="display: none;">
+                        ⏹️ Stop Training
+                    </button>
+                    <button id="reset-model-btn" class="training-btn reset-btn" onclick="resetModel()">
+                        🔄 Reset Model
+                    </button>
+                </div>
+
+                <!-- Training History -->
+                <div class="training-section">
+                    <h3>Training History</h3>
+                    <div class="training-history" id="training-history">
+                        <p>No training sessions yet.</p>
+                    </div>
+                </div>
             </div>
         </div>
+
 
         <!-- Generate Tab -->
         <div id="generate" class="tab-content">
