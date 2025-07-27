@@ -235,10 +235,38 @@ def generation_list():
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
     try:
-        config = request.json
+        # Get configuration from request
+        config = request.get_json() or {}
+        
+        # Validate that we have songs
+        songs_count = Song.query.count()
+        if songs_count < 5:
+            return jsonify({
+                'success': False, 
+                'error': f'Need at least 5 songs to start training. Currently have {songs_count} songs.'
+            }), 400
+        
+        # Check that songs have required data
+        songs_with_lyrics = Song.query.filter(Song.lyrics != '', Song.lyrics.isnot(None)).count()
+        if songs_with_lyrics < songs_count:
+            return jsonify({
+                'success': False, 
+                'error': 'All songs must have lyrics to start training.'
+            }), 400
         
         # Simulate training start
         session_id = str(uuid.uuid4())
+        
+        # Store training session info (in a real app, you'd save this to database)
+        app.config['CURRENT_TRAINING'] = {
+            'session_id': session_id,
+            'status': 'training',
+            'progress': 0,
+            'current_epoch': 0,
+            'total_epochs': config.get('epochs', 25),
+            'start_time': datetime.utcnow(),
+            'config': config
+        }
         
         return jsonify({
             'success': True,
@@ -248,6 +276,98 @@ def start_training():
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/stop', methods=['POST'])
+def stop_training():
+    try:
+        # Clear current training
+        if 'CURRENT_TRAINING' in app.config:
+            app.config['CURRENT_TRAINING']['status'] = 'stopped'
+        
+        return jsonify({
+            'success': True,
+            'message': 'Training stopped successfully!'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/reset', methods=['POST'])
+def reset_training():
+    try:
+        # Clear training data
+        if 'CURRENT_TRAINING' in app.config:
+            del app.config['CURRENT_TRAINING']
+        
+        return jsonify({
+            'success': True,
+            'message': 'Model reset successfully!'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/status')
+def get_training_status():
+    try:
+        # Check if training is active
+        if 'CURRENT_TRAINING' not in app.config:
+            return jsonify({
+                'success': True,
+                'status': {
+                    'status': 'not_started',
+                    'progress': 0
+                }
+            })
+        
+        training = app.config['CURRENT_TRAINING']
+        
+        # Simulate training progress
+        if training['status'] == 'training':
+            # Calculate progress based on time elapsed
+            elapsed = (datetime.utcnow() - training['start_time']).total_seconds()
+            total_time = training['total_epochs'] * 60  # 1 minute per epoch simulation
+            progress = min((elapsed / total_time) * 100, 100)
+            
+            current_epoch = min(int(elapsed / 60) + 1, training['total_epochs'])
+            
+            # Simulate completion
+            if progress >= 100:
+                training['status'] = 'completed'
+                training['progress'] = 100
+            else:
+                training['progress'] = progress
+                training['current_epoch'] = current_epoch
+        
+        return jsonify({
+            'success': True,
+            'status': {
+                'status': training['status'],
+                'progress': training.get('progress', 0),
+                'current_epoch': training.get('current_epoch', 0),
+                'total_epochs': training.get('total_epochs', 25),
+                'loss': round(max(0.5 - (training.get('progress', 0) / 200), 0.05), 4),
+                'accuracy': round(min(0.6 + (training.get('progress', 0) / 150), 0.95), 3),
+                'eta': f"{max(training.get('total_epochs', 25) - training.get('current_epoch', 0), 0)} minutes"
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/history')
+def get_training_history():
+    try:
+        # In a real app, you'd fetch this from database
+        # For now, return empty history
+        return jsonify({
+            'success': True,
+            'history': []
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/training/stop', methods=['POST'])
 def stop_training():
