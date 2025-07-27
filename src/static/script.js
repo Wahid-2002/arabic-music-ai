@@ -37,10 +37,11 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupFileUpload() {
     const fileInput = document.getElementById('audio-file');
     const uploadArea = document.getElementById('file-upload-area');
-    const uploadBtn = document.getElementById('upload-btn');
 
     // File input change handler
-    fileInput.addEventListener('change', handleFileSelect);
+    fileInput.addEventListener('change', function(e) {
+        handleFileSelect(e);
+    });
 
     // Drag and drop handlers
     uploadArea.addEventListener('dragover', (e) => {
@@ -60,8 +61,8 @@ function setupFileUpload() {
         if (files.length > 0) {
             const file = files[0];
             if (isValidAudioFile(file)) {
-                fileInput.files = files;
-                handleFileSelect({ target: { files: [file] } });
+                selectedAudioFile = file;
+                showSelectedFile(file);
             } else {
                 alert('Please select a valid audio file (MP3, WAV, FLAC, M4A)');
             }
@@ -85,8 +86,11 @@ function handleFileSelect(e) {
     }
 
     selectedAudioFile = file;
-    
-    // Show selected file info
+    showSelectedFile(file);
+}
+
+// Show selected file
+function showSelectedFile(file) {
     document.getElementById('selected-file-name').textContent = file.name;
     document.getElementById('selected-file-size').textContent = formatFileSize(file.size);
     document.getElementById('file-selected').style.display = 'block';
@@ -136,7 +140,7 @@ async function loadDashboardData() {
     }
 }
 
-// Load songs list
+// Load songs list with edit functionality
 async function loadSongs() {
     try {
         const response = await fetch('/api/songs/list');
@@ -148,13 +152,32 @@ async function loadSongs() {
                 container.innerHTML = '<p>No songs uploaded yet.</p>';
             } else {
                 container.innerHTML = data.songs.map(song => `
-                    <div class="song-item" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-                        <h3>${song.title}</h3>
-                        <p><strong>Artist:</strong> ${song.artist}</p>
-                        <p><strong>Details:</strong> ${song.maqam} | ${song.style} | ${song.region} | ${song.tempo} BPM</p>
-                        <p><strong>Emotion:</strong> ${song.emotion}</p>
-                        ${song.composer ? `<p><strong>Composer:</strong> ${song.composer}</p>` : ''}
-                        ${song.poem_bahr ? `<p><strong>Poem Bahr:</strong> ${song.poem_bahr}</p>` : ''}
+                    <div class="song-item" style="background: rgba(255,255,255,0.8); padding: 20px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                        <div class="song-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: #333;">${song.title}</h3>
+                            <div class="song-actions">
+                                <button onclick="editSong(${song.id})" style="background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 5px; margin-right: 5px; cursor: pointer;">✏️ Edit</button>
+                                <button onclick="deleteSong(${song.id})" style="background: #f44336; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">🗑️ Delete</button>
+                            </div>
+                        </div>
+                        <div class="song-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                            <p><strong>Artist:</strong> ${song.artist}</p>
+                            <p><strong>Maqam:</strong> ${song.maqam}</p>
+                            <p><strong>Style:</strong> ${song.style}</p>
+                            <p><strong>Region:</strong> ${song.region}</p>
+                            <p><strong>Tempo:</strong> ${song.tempo} BPM</p>
+                            <p><strong>Emotion:</strong> ${song.emotion}</p>
+                            ${song.composer ? `<p><strong>Composer:</strong> ${song.composer}</p>` : ''}
+                            ${song.poem_bahr ? `<p><strong>Poem Bahr:</strong> ${song.poem_bahr}</p>` : ''}
+                        </div>
+                        <div class="song-lyrics" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 8px;">
+                            <strong>Lyrics:</strong>  
+
+                            <div style="max-height: 100px; overflow-y: auto; margin-top: 5px;">${song.lyrics}</div>
+                        </div>
+                        <div class="song-meta" style="margin-top: 10px; font-size: 0.9rem; color: #666;">
+                            <p>Uploaded: ${new Date(song.upload_date).toLocaleDateString()} | File size: ${formatFileSize(song.file_size)}</p>
+                        </div>
                     </div>
                 `).join('');
             }
@@ -173,8 +196,18 @@ async function handleUpload(event) {
         return;
     }
     
-    const formData = new FormData(event.target);
+    const formData = new FormData();
+    
+    // Add file
     formData.append('audio_file', selectedAudioFile);
+    
+    // Add form fields
+    const formElements = event.target.elements;
+    for (let element of formElements) {
+        if (element.name && element.value) {
+            formData.append(element.name, element.value);
+        }
+    }
     
     // Disable upload button during upload
     const uploadBtn = document.getElementById('upload-btn');
@@ -205,5 +238,64 @@ async function handleUpload(event) {
     } finally {
         uploadBtn.textContent = originalText;
         uploadBtn.disabled = false;
+    }
+}
+
+// Edit song function
+function editSong(songId) {
+    // For now, show a simple prompt - you can enhance this with a modal later
+    const newTitle = prompt('Enter new title:');
+    if (newTitle) {
+        updateSong(songId, { title: newTitle });
+    }
+}
+
+// Update song
+async function updateSong(songId, updates) {
+    try {
+        const response = await fetch(`/api/songs/${songId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updates)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Song updated successfully!');
+            loadSongs();
+            loadDashboardData();
+        } else {
+            alert('Update failed: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Update error:', error);
+        alert('Update failed. Please try again.');
+    }
+}
+
+// Delete song function
+async function deleteSong(songId) {
+    if (confirm('Are you sure you want to delete this song? This action cannot be undone.')) {
+        try {
+            const response = await fetch(`/api/songs/${songId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('Song deleted successfully!');
+                loadSongs();
+                loadDashboardData();
+            } else {
+                alert('Delete failed: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('Delete failed. Please try again.');
+        }
     }
 }
