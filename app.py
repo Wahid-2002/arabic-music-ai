@@ -1,5 +1,7 @@
 import os
 import sys
+import uuid
+from werkzeug.utils import secure_filename
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +24,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize extensions
 CORS(app)
 db = SQLAlchemy(app)
+
+# Create upload directory
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Database Models
 class Song(db.Model):
@@ -54,7 +67,8 @@ class Song(db.Model):
             'composer': self.composer,
             'poem_bahr': self.poem_bahr,
             'upload_date': self.upload_date.isoformat() if self.upload_date else None,
-            'file_size': self.file_size
+            'file_size': self.file_size,
+            'audio_file_path': self.audio_file_path
         }
 
 # API Routes
@@ -77,7 +91,7 @@ def dashboard_stats():
 @app.route('/api/songs/list')
 def get_songs():
     try:
-        songs = Song.query.all()
+        songs = Song.query.order_by(Song.upload_date.desc()).all()
         return jsonify({
             'success': True,
             'songs': [song.to_dict() for song in songs]
@@ -88,29 +102,118 @@ def get_songs():
 @app.route('/api/songs/upload', methods=['POST'])
 def upload_song():
     try:
-        # For now, just return success (file upload will be added later)
-        data = request.form
+        # Check if file is present
+        if 'audio_file' not in request.files:
+            return jsonify({'success': False, 'error': 'No audio file provided'}), 400
         
-        # Create song record
+        file = request.files['audio_file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': 'Invalid file type. Please upload MP3, WAV, FLAC, or M4A files.'}), 400
+        
+        # Get form data
+        title = request.form.get('title', '').strip()
+        artist = request.form.get('artist', '').strip()
+        lyrics = request.form.get('lyrics', '').strip()
+        maqam = request.form.get('maqam', '').strip()
+        style = request.form.get('style', '').strip()
+        tempo = request.form.get('tempo', type=int)
+        emotion = request.form.get('emotion', '').strip()
+        region = request.form.get('region', '').strip()
+        composer = request.form.get('composer', '').strip()
+        poem_bahr = request.form.get('poem_bahr', '').strip()
+        
+        # Validate required fields
+        if not all([title, artist, lyrics, maqam, style, tempo, emotion, region]):
+            return jsonify({'success': False, 'error': 'All required fields must be filled'}), 400
+        
+        if not (60 <= tempo <= 180):
+            return jsonify({'success': False, 'error': 'Tempo must be between 60 and 180 BPM'}), 400
+        
+        # Save file
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+        file.save(file_path)
+        
+        # Get file size
+        file_size = os.path.getsize(file_path)
+        
+        # Create database entry
         song = Song(
-            title=data.get('title', 'Test Song'),
-            artist=data.get('artist', 'Test Artist'),
-            lyrics=data.get('lyrics', 'Test lyrics'),
-            audio_file_path='placeholder.mp3',
-            maqam=data.get('maqam', 'Unknown'),
-            style=data.get('style', 'Classical'),
-            tempo=int(data.get('tempo', 120)),
-            emotion=data.get('emotion', 'Happy'),
-            region=data.get('region', 'Egyptian'),
-            composer=data.get('composer', ''),
-            poem_bahr=data.get('poem_bahr', ''),
-            file_size=0
+            title=title,
+            artist=artist,
+            lyrics=lyrics,
+            audio_file_path=file_path,
+            maqam=maqam,
+            style=style,
+            tempo=tempo,
+            emotion=emotion,
+            region=region,
+            composer=composer,
+            poem_bahr=poem_bahr,
+            file_size=file_size
         )
         
         db.session.add(song)
         db.session.commit()
         
-        return jsonify({'success': True, 'message': 'Song uploaded successfully'})
+        return jsonify({
+            'success': True, 
+            'message': 'Song uploaded successfully!',
+            'song': song.to_dict()
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/songs/<int:song_id>', methods=['PUT'])
+def update_song(song_id):
+    try:
+        song = Song.query.get_or_404(song_id)
+        
+        # Update fields
+        song.title = request.json.get('title', song.title)
+        song.artist = request.json.get('artist', song.artist)
+        song.lyrics = request.json.get('lyrics', song.lyrics)
+        song.maqam = request.json.get('maqam', song.maqam)
+        song.style = request.json.get('style', song.style)
+        song.tempo = request.json.get('tempo', song.tempo)
+        song.emotion = request.json.get('emotion', song.emotion)
+        song.region = request.json.get('region', song.region)
+        song.composer = request.json.get('composer', song.composer)
+        song.poem_bahr = request.json.get('poem_bahr', song.poem_bahr)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Song updated successfully!',
+            'song': song.to_dict()
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/songs/<int:song_id>', methods=['DELETE'])
+def delete_song(song_id):
+    try:
+        song = Song.query.get_or_404(song_id)
+        
+        # Delete file if it exists
+        if os.path.exists(song.audio_file_path):
+            os.remove(song.audio_file_path)
+        
+        db.session.delete(song)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Song deleted successfully!'
+        })
+        
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -128,6 +231,11 @@ def generation_list():
         'success': True,
         'generated_songs': []
     })
+
+# Serve uploaded files
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 # Serve static files and main app
 @app.route('/', defaults={'path': ''})
