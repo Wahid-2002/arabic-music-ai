@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arabic Music AI Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 Arabic Music AI Generator</h1>
+            <nav class="tabs">
+                <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+                <button class="tab-btn" data-tab="upload">📤 Upload Songs</button>
+                <button class="tab-btn" data-tab="train">🧠 Train Model</button>
+                <button class="tab-btn" data-tab="generate">🎼 Generate Music</button>
+            </nav>
+        </header>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🎵</div>
+                    <div class="stat-number" id="songs-count">0</div>
+                    <div class="stat-label">Songs Uploaded</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-number" id="training-status">Not Started</div>
+                    <div class="stat-label">Training Status</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-number" id="model-accuracy">0%</div>
+                    <div class="stat-label">Model Accuracy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎼</div>
+                    <div class="stat-number" id="generated-count">0</div>
+                    <div class="stat-label">Songs Generated</div>
+                </div>
+            </div>
+
+            <div class="activity-section">
+                <h2>Recent Activity</h2>
+                <div class="activity-item">
+                    <div class="activity-icon">ℹ️</div>
+                    <div class="activity-text">Welcome to Arabic Music AI Generator! Start by uploading some songs</div>
+                    <div class="activity-time">Start by uploading some songs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div id="upload" class="tab-content">
+            <div class="upload-section">
+                <h2>Upload New Song</h2>
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="title">Song Title *</label>
+                            <input type="text" id="title" name="title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="artist">Artist *</label>
+                            <input type="text" id="artist" name="artist" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="lyrics">Arabic Lyrics *</label>
+                            <textarea id="lyrics" name="lyrics" rows="4" placeholder="Enter Arabic lyrics here..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="maqam">Maqam *</label>
+                            <select id="maqam" name="maqam" required>
+                                <option value="">Select Maqam</option>
+                                <option value="Unknown">Unknown</option>
+                                <option value="Hijaz">Hijaz</option>
+                                <option value="Bayati">Bayati</option>
+                                <option value="Saba">Saba</option>
+                                <option value="Rast">Rast</option>
+                                <option value="Kurd">Kurd</option>
+                                <option value="Nahawand">Nahawand</option>
+                                <option value="Ajam">Ajam</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="style">Style *</label>
+                            <select id="style" name="style" required>
+                                <option value="">Select Style</option>
+                                <option value="Classical">Classical</option>
+                                <option value="Folk">Folk</option>
+                                <option value="Modern">Modern</option>
+                                <option value="Traditional">Traditional</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tempo">Tempo (BPM) *</label>
+                            <input type="number" id="tempo" name="tempo" min="60" max="180" value="120" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="emotion">Emotion *</label>
+                            <select id="emotion" name="emotion" required>
+                                <option value="">Select Emotion</option>
+                                <option value="Happy">Happy</option>
+                                <option value="Sad">Sad</option>
+                                <option value="Romantic">Romantic</option>
+                                <option value="Dramatic">Dramatic</option>
+                                <option value="Melancholic">Melancholic</option>
+                                <option value="Energetic">Energetic</option>
+                                <option value="Peaceful">Peaceful</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="region">Region *</label>
+                            <select id="region" name="region" required>
+                                <option value="">Select Region</option>
+                                <option value="Egyptian">Egyptian</option>
+                                <option value="Lebanese">Lebanese</option>
+                                <option value="Syrian">Syrian</option>
+                                <option value="Iraqi">Iraqi</option>
+                                <option value="Moroccan">Moroccan</option>
+                                <option value="Tunisian">Tunisian</option>
+                                <option value="Gulf">Gulf</option>
+                                <option value="Sudan">Sudan</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="composer">Composer</label>
+                            <input type="text" id="composer" name="composer">
+                        </div>
+                        <div class="form-group">
+                            <label for="poem_bahr">Poem Bahr</label>
+                            <select id="poem_bahr" name="poem_bahr">
+                                <option value="">Select Bahr</option>
+                                <option value="Baseet">Baseet</option>
+                                <option value="Kamel">Kamel</option>
+                                <option value="Wafer">Wafer</option>
+                                <option value="Taweel">Taweel</option>
+                                <option value="Motaqareb">Motaqareb</option>
+                                <option value="Motadarak">Motadarak</option>
+                                <option value="Hazj">Hazj</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="upload-btn">Upload Song</button>
+                </form>
+            </div>
+
+            <div class="songs-list">
+                <h2>Uploaded Songs</h2>
+                <div id="songs-container">
+                    <p>No songs uploaded yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Train Tab -->
+        <div id="train" class="tab-content">
+            <h2>Model Training</h2>
+            <div class="training-status">
+                <h3>Training Status</h3>
+                <p id="training-status-text">Not Started</p>
+            </div>
+        </div>
+
+        <!-- Generate Tab -->
+        <div id="generate" class="tab-content">
+            <h2>Generate New Song</h2>
+            <div class="generate-form">
+                <label for="generate-lyrics">Input Lyrics/Poem *</label>
+                <textarea id="generate-lyrics" rows="6" placeholder="Enter Arabic lyrics or poem here..."></textarea>
+                <button class="generate-btn">Generate Music</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
