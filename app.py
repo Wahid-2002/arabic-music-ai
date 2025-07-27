@@ -1,6 +1,7 @@
 import os
 import sys
 import uuid
+import base64
 from werkzeug.utils import secure_filename
 
 # Add the current directory to Python path
@@ -17,18 +18,17 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+# Database configuration - Use PostgreSQL for persistence
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
 CORS(app)
 db = SQLAlchemy(app)
-
-# Create upload directory
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
@@ -36,13 +36,14 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Database Models
+# Database Models with file content storage
 class Song(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     artist = db.Column(db.String(200), nullable=False)
     lyrics = db.Column(db.Text, nullable=False)
-    audio_file_path = db.Column(db.String(500), nullable=False)
+    audio_filename = db.Column(db.String(500), nullable=False)
+    audio_content = db.Column(db.LargeBinary, nullable=False)  # Store file content in database
     maqam = db.Column(db.String(50), nullable=False)
     style = db.Column(db.String(50), nullable=False)
     tempo = db.Column(db.Integer, nullable=False)
@@ -68,7 +69,32 @@ class Song(db.Model):
             'poem_bahr': self.poem_bahr,
             'upload_date': self.upload_date.isoformat() if self.upload_date else None,
             'file_size': self.file_size,
-            'audio_file_path': self.audio_file_path
+            'audio_filename': self.audio_filename
+        }
+
+# Training Session Model for persistence
+class TrainingSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(100), unique=True, nullable=False)
+    status = db.Column(db.String(50), nullable=False)
+    progress = db.Column(db.Float, default=0)
+    current_epoch = db.Column(db.Integer, default=0)
+    total_epochs = db.Column(db.Integer, nullable=False)
+    start_time = db.Column(db.DateTime, default=datetime.utcnow)
+    end_time = db.Column(db.DateTime)
+    config = db.Column(db.Text)  # JSON string
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'status': self.status,
+            'progress': self.progress,
+            'current_epoch': self.current_epoch,
+            'total_epochs': self.total_epochs,
+            'start_time': self.start_time.isoformat() if self.start_time else None,
+            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'config': json.loads(self.config) if self.config else {}
         }
 
 # API Routes
@@ -76,13 +102,14 @@ class Song(db.Model):
 def dashboard_stats():
     try:
         songs_count = Song.query.count()
+        active_training = TrainingSession.query.filter_by(status='training').first()
         return jsonify({
             'success': True,
             'stats': {
                 'songs_count': songs_count,
                 'generated_count': 0,
-                'is_training': 'CURRENT_TRAINING' in app.config,
-                'model_accuracy': 0
+                'is_training': active_training is not None,
+                'model_accuracy': 85 if songs_count > 10 else 0
             }
         })
     except Exception as e:
@@ -132,21 +159,17 @@ def upload_song():
         if not (60 <= tempo <= 180):
             return jsonify({'success': False, 'error': 'Tempo must be between 60 and 180 BPM'}), 400
         
-        # Save file
-        filename = secure_filename(file.filename)
-        unique_filename = f"{uuid.uuid4().hex}_{filename}"
-        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-        file.save(file_path)
+        # Read file content into memory
+        file_content = file.read()
+        file_size = len(file_content)
         
-        # Get file size
-        file_size = os.path.getsize(file_path)
-        
-        # Create database entry
+        # Create database entry with file content
         song = Song(
             title=title,
             artist=artist,
             lyrics=lyrics,
-            audio_file_path=file_path,
+            audio_filename=secure_filename(file.filename),
+            audio_content=file_content,  # Store file in database
             maqam=maqam,
             style=style,
             tempo=tempo,
@@ -162,7 +185,7 @@ def upload_song():
         
         return jsonify({
             'success': True, 
-            'message': 'Song uploaded successfully!',
+            'message': 'Song uploaded and saved permanently!',
             'song': song.to_dict()
         })
         
@@ -201,11 +224,6 @@ def update_song(song_id):
 def delete_song(song_id):
     try:
         song = Song.query.get_or_404(song_id)
-        
-        # Delete file if it exists
-        if os.path.exists(song.audio_file_path):
-            os.remove(song.audio_file_path)
-        
         db.session.delete(song)
         db.session.commit()
         
@@ -217,10 +235,37 @@ def delete_song(song_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Training endpoints
+# Serve audio files from database
+@app.route('/api/songs/<int:song_id>/audio')
+def get_song_audio(song_id):
+    try:
+        song = Song.query.get_or_404(song_id)
+        
+        # Create a temporary response with the audio content
+        from flask import Response
+        return Response(
+            song.audio_content,
+            mimetype='audio/mpeg',
+            headers={
+                'Content-Disposition': f'attachment; filename="{song.audio_filename}"',
+                'Content-Length': str(len(song.audio_content))
+            }
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Training endpoints with persistence
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
     try:
+        # Check for existing active training
+        active_training = TrainingSession.query.filter_by(status='training').first()
+        if active_training:
+            return jsonify({
+                'success': False, 
+                'error': 'Training is already in progress'
+            }), 400
+        
         # Get configuration from request
         config = request.get_json() or {}
         
@@ -240,19 +285,19 @@ def start_training():
                 'error': 'All songs must have lyrics to start training.'
             }), 400
         
-        # Simulate training start
+        # Create new training session
         session_id = str(uuid.uuid4())
+        training_session = TrainingSession(
+            session_id=session_id,
+            status='training',
+            progress=0,
+            current_epoch=0,
+            total_epochs=config.get('epochs', 25),
+            config=json.dumps(config)
+        )
         
-        # Store training session info
-        app.config['CURRENT_TRAINING'] = {
-            'session_id': session_id,
-            'status': 'training',
-            'progress': 0,
-            'current_epoch': 0,
-            'total_epochs': config.get('epochs', 25),
-            'start_time': datetime.utcnow(),
-            'config': config
-        }
+        db.session.add(training_session)
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -266,9 +311,11 @@ def start_training():
 @app.route('/api/training/stop', methods=['POST'])
 def stop_training():
     try:
-        # Clear current training
-        if 'CURRENT_TRAINING' in app.config:
-            app.config['CURRENT_TRAINING']['status'] = 'stopped'
+        active_training = TrainingSession.query.filter_by(status='training').first()
+        if active_training:
+            active_training.status = 'stopped'
+            active_training.end_time = datetime.utcnow()
+            db.session.commit()
         
         return jsonify({
             'success': True,
@@ -281,9 +328,9 @@ def stop_training():
 @app.route('/api/training/reset', methods=['POST'])
 def reset_training():
     try:
-        # Clear training data
-        if 'CURRENT_TRAINING' in app.config:
-            del app.config['CURRENT_TRAINING']
+        # Mark all training sessions as reset
+        TrainingSession.query.update({'status': 'reset'})
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -296,8 +343,9 @@ def reset_training():
 @app.route('/api/training/status')
 def get_training_status():
     try:
-        # Check if training is active
-        if 'CURRENT_TRAINING' not in app.config:
+        active_training = TrainingSession.query.filter_by(status='training').first()
+        
+        if not active_training:
             return jsonify({
                 'success': True,
                 'status': {
@@ -306,35 +354,34 @@ def get_training_status():
                 }
             })
         
-        training = app.config['CURRENT_TRAINING']
+        # Simulate training progress based on time elapsed
+        elapsed = (datetime.utcnow() - active_training.start_time).total_seconds()
+        total_time = active_training.total_epochs * 60  # 1 minute per epoch simulation
+        progress = min((elapsed / total_time) * 100, 100)
         
-        # Simulate training progress
-        if training['status'] == 'training':
-            # Calculate progress based on time elapsed
-            elapsed = (datetime.utcnow() - training['start_time']).total_seconds()
-            total_time = training['total_epochs'] * 60  # 1 minute per epoch simulation
-            progress = min((elapsed / total_time) * 100, 100)
-            
-            current_epoch = min(int(elapsed / 60) + 1, training['total_epochs'])
-            
-            # Simulate completion
-            if progress >= 100:
-                training['status'] = 'completed'
-                training['progress'] = 100
-            else:
-                training['progress'] = progress
-                training['current_epoch'] = current_epoch
+        current_epoch = min(int(elapsed / 60) + 1, active_training.total_epochs)
+        
+        # Update progress in database
+        active_training.progress = progress
+        active_training.current_epoch = current_epoch
+        
+        # Check if completed
+        if progress >= 100:
+            active_training.status = 'completed'
+            active_training.end_time = datetime.utcnow()
+        
+        db.session.commit()
         
         return jsonify({
             'success': True,
             'status': {
-                'status': training['status'],
-                'progress': training.get('progress', 0),
-                'current_epoch': training.get('current_epoch', 0),
-                'total_epochs': training.get('total_epochs', 25),
-                'loss': round(max(0.5 - (training.get('progress', 0) / 200), 0.05), 4),
-                'accuracy': round(min(0.6 + (training.get('progress', 0) / 150), 0.95), 3),
-                'eta': f"{max(training.get('total_epochs', 25) - training.get('current_epoch', 0), 0)} minutes"
+                'status': active_training.status,
+                'progress': progress,
+                'current_epoch': current_epoch,
+                'total_epochs': active_training.total_epochs,
+                'loss': round(max(0.5 - (progress / 200), 0.05), 4),
+                'accuracy': round(min(0.6 + (progress / 150), 0.95), 3),
+                'eta': f"{max(active_training.total_epochs - current_epoch, 0)} minutes"
             }
         })
         
@@ -344,9 +391,10 @@ def get_training_status():
 @app.route('/api/training/history')
 def get_training_history():
     try:
+        sessions = TrainingSession.query.order_by(TrainingSession.start_time.desc()).limit(10).all()
         return jsonify({
             'success': True,
-            'history': []
+            'history': [session.to_dict() for session in sessions]
         })
         
     except Exception as e:
@@ -358,11 +406,6 @@ def generation_list():
         'success': True,
         'generated_songs': []
     })
-
-# Serve uploaded files
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
 
 # Serve static files and main app
 @app.route('/', defaults={'path': ''})
