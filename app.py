@@ -299,33 +299,68 @@ def get_song_audio(song_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Training endpoints
+@app.route('/api/training/prerequisites')
+def training_prerequisites():
+    try:
+        songs_count = Song.query.filter_by(is_active=True).count()
+        songs_with_lyrics = Song.query.filter(
+            Song.is_active == True,
+            Song.lyrics != '',
+            Song.lyrics.isnot(None)
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'prerequisites': {
+                'songs_count': songs_count,
+                'songs_with_lyrics': songs_with_lyrics,
+                'min_songs_required': 5,
+                'songs_ready': songs_count >= 5,
+                'lyrics_ready': songs_with_lyrics >= songs_count * 0.8  # 80% of songs should have lyrics
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
     try:
-        active_training = TrainingSession.query.filter_by(status='training').first()
-        if active_training:
-            return jsonify({
-                'success': False, 
-                'error': 'Training is already in progress'
-            }), 400
-        
+        # Get configuration from request
         config = request.get_json() or {}
         
+        # Check prerequisites
         songs_count = Song.query.filter_by(is_active=True).count()
-        if songs_count < 3:
+        if songs_count < 5:
             return jsonify({
                 'success': False, 
-                'error': f'Need at least 3 songs to start training. Currently have {songs_count} songs in library.'
+                'error': f'Need at least 5 songs to start training. Currently have {songs_count} songs. Please upload more songs first.'
             }), 400
         
+        # Check that songs have required data
+        songs_with_lyrics = Song.query.filter(
+            Song.is_active == True,
+            Song.lyrics != '',
+            Song.lyrics.isnot(None)
+        ).count()
+        
+        if songs_with_lyrics < songs_count * 0.8:
+            return jsonify({
+                'success': False, 
+                'error': f'At least 80% of songs must have lyrics. Currently {songs_with_lyrics}/{songs_count} songs have lyrics.'
+            }), 400
+        
+        # Create training session
         session_id = str(uuid.uuid4())
+        
         training_session = TrainingSession(
             session_id=session_id,
             status='training',
             progress=0,
-            current_epoch=0,
-            total_epochs=config.get('epochs', 25),
-            config_data=json.dumps(config)
+            epochs=config.get('epochs', 25),
+            learning_rate=config.get('learning_rate', 0.001),
+            batch_size=config.get('batch_size', 32),
+            training_focus=config.get('training_focus', 'melody_lyrics'),
+            songs_used=songs_count
         )
         
         db.session.add(training_session)
@@ -333,57 +368,111 @@ def start_training():
         
         return jsonify({
             'success': True,
-            'message': f'Training started with {songs_count} songs from library!',
-            'session_id': session_id
+            'message': f'Training started successfully with {songs_count} songs!',
+            'session_id': session_id,
+            'songs_count': songs_count
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/training/status')
-def get_training_status():
+def training_status():
     try:
-        active_training = TrainingSession.query.filter_by(status='training').first()
+        # Get latest training session
+        latest_session = TrainingSession.query.order_by(TrainingSession.created_at.desc()).first()
         
-        if not active_training:
+        if not latest_session:
             return jsonify({
                 'success': True,
                 'status': {
                     'status': 'not_started',
-                    'progress': 0
+                    'progress': 0,
+                    'message': 'No training sessions yet'
                 }
             })
         
-        elapsed = (datetime.utcnow() - active_training.start_time).total_seconds()
-        total_time = active_training.total_epochs * 60
-        progress = min((elapsed / total_time) * 100, 100)
-        
-        current_epoch = min(int(elapsed / 60) + 1, active_training.total_epochs)
-        
-        active_training.progress = progress
-        active_training.current_epoch = current_epoch
-        
-        if progress >= 100:
-            active_training.status = 'completed'
-            active_training.end_time = datetime.utcnow()
-        
-        db.session.commit()
+        # Simulate training progress for demo
+        import random
+        if latest_session.status == 'training':
+            # Simulate progress
+            progress = min(latest_session.progress + random.randint(1, 5), 100)
+            latest_session.progress = progress
+            
+            if progress >= 100:
+                latest_session.status = 'completed'
+                latest_session.final_accuracy = random.uniform(0.85, 0.95)
+            
+            db.session.commit()
         
         return jsonify({
             'success': True,
             'status': {
-                'status': active_training.status,
-                'progress': progress,
-                'current_epoch': current_epoch,
-                'total_epochs': active_training.total_epochs,
-                'loss': round(max(0.5 - (progress / 200), 0.05), 4),
-                'accuracy': round(min(0.6 + (progress / 150), 0.95), 3),
-                'eta': f"{max(active_training.total_epochs - current_epoch, 0)} minutes"
+                'status': latest_session.status,
+                'progress': latest_session.progress,
+                'current_epoch': min(int(latest_session.progress / 4), latest_session.epochs),
+                'total_epochs': latest_session.epochs,
+                'accuracy': latest_session.final_accuracy or random.uniform(0.7, 0.9),
+                'loss': random.uniform(0.1, 0.5),
+                'eta': f'{max(1, 30 - int(latest_session.progress / 3))} minutes',
+                'songs_used': latest_session.songs_used
             }
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/history')
+def training_history():
+    try:
+        sessions = TrainingSession.query.order_by(TrainingSession.created_at.desc()).limit(10).all()
+        
+        history = []
+        for session in sessions:
+            history.append({
+                'id': session.id,
+                'session_id': session.session_id,
+                'status': session.status,
+                'progress': session.progress,
+                'epochs': session.epochs,
+                'songs_used': session.songs_used,
+                'final_accuracy': session.final_accuracy,
+                'created_at': session.created_at.isoformat(),
+                'completed_at': session.completed_at.isoformat() if session.completed_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'history': history
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/training/stop', methods=['POST'])
+def stop_training():
+    try:
+        # Get latest training session
+        latest_session = TrainingSession.query.filter_by(status='training').first()
+        
+        if latest_session:
+            latest_session.status = 'stopped'
+            latest_session.completed_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Training stopped successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No active training session found'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # Generation endpoints
 @app.route('/api/generation/generate', methods=['POST'])
