@@ -666,6 +666,54 @@ Quality: ${data.demo_info.quality}
                 alert('Audio playback failed. Please try again.');
             }
         };
+        // Quick example templates for generation testing
+        function loadExampleTemplate(templateName) {
+            const templates = {
+                'romantic': {
+                    title: 'حبيبي يا نور العين',
+                    lyrics: 'حبيبي يا نور العين\nيا غالي على القلب\nأنت الحب والحنين\nوأنت الأمل والطرب\n\nفي عينيك أرى الدنيا\nوفي صوتك أسمع الغنا\nحبك في قلبي سكن\nوأنت روحي وهواي',
+                    maqam: 'Hijaz',
+                    style: 'Traditional',
+                    tempo: 90,
+                    emotion: 'Romantic',
+                    region: 'Egyptian'
+                },
+                'happy': {
+                    title: 'يوم جميل',
+                    lyrics: 'يوم جميل والشمس مشرقة\nوالطيور تغني في السماء\nقلبي فرحان والدنيا ضاحكة\nكل شيء حولي جميل\n\nلا لا لا لا\nيا فرحة قلبي\nلا لا لا لا\nيا بهجة روحي',
+                    maqam: 'Rast',
+                    style: 'Modern',
+                    tempo: 140,
+                    emotion: 'Happy',
+                    region: 'Lebanese'
+                },
+                'traditional': {
+                    title: 'يا مسافر وحدك',
+                    lyrics: 'يا مسافر وحدك في الليل\nخذني معك في الرحلة\nالطريق طويل والقلب حزين\nوالذكريات تناديني\n\nيا ليل يا عين\nيا نجوم السماء\nاحكوا لي حكاية\nعن الحب والوفاء',
+                    maqam: 'Bayati',
+                    style: 'Classical',
+                    tempo: 100,
+                    emotion: 'Melancholic',
+                    region: 'Syrian'
+                }
+            };
+            
+            const template = templates[templateName];
+            if (template) {
+                document.getElementById('gen-title').value = template.title;
+                document.getElementById('gen-lyrics').value = template.lyrics;
+                document.getElementById('gen-maqam').value = template.maqam;
+                document.getElementById('gen-style').value = template.style;
+                document.getElementById('gen-tempo').value = template.tempo;
+                document.getElementById('gen-emotion').value = template.emotion;
+                document.getElementById('gen-region').value = template.region;
+                
+                // Update tempo display
+                document.getElementById('gen-tempo-value').textContent = template.tempo + ' BPM';
+                
+                alert(`📝 Loaded "${templateName}" template! You can modify the parameters and generate the song.`);
+            }
+        }
 
         // Training functionality
         async function checkTrainingPrerequisites() {
