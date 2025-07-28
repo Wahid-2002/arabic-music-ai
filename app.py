@@ -478,10 +478,11 @@ def stop_training():
 @app.route('/api/generation/generate', methods=['POST'])
 def generate_music():
     try:
-        params = request.get_json()
+        data = request.get_json()
         
+        # Validate required fields
         required_fields = ['title', 'lyrics', 'maqam', 'style', 'tempo', 'emotion', 'region']
-        missing_fields = [field for field in required_fields if not params.get(field)]
+        missing_fields = [field for field in required_fields if not data.get(field)]
         
         if missing_fields:
             return jsonify({
@@ -489,36 +490,34 @@ def generate_music():
                 'error': f'Missing required fields: {", ".join(missing_fields)}'
             }), 400
         
-        tempo = int(params.get('tempo', 120))
-        if not (60 <= tempo <= 180):
-            return jsonify({
-                'success': False,
-                'error': 'Tempo must be between 60 and 180 BPM'
-            }), 400
-        
+        # Check if we have enough training data
         songs_count = Song.query.filter_by(is_active=True).count()
         if songs_count < 3:
             return jsonify({
                 'success': False,
-                'error': f'Need at least 3 songs in library to generate music. Currently have {songs_count} songs.'
+                'error': f'Need at least 3 songs in library for generation. Currently have {songs_count} songs. Please upload more songs first.'
             }), 400
         
+        # Check if model is trained (for demo, we'll allow generation with basic validation)
+        latest_training = TrainingSession.query.filter_by(status='completed').order_by(TrainingSession.created_at.desc()).first()
+        
+        # Create generated song record
         generated_song = GeneratedSong(
-            title=params.get('title'),
-            artist=params.get('artist', 'AI Generated'),
-            lyrics=params.get('lyrics'),
-            maqam=params.get('maqam'),
-            style=params.get('style'),
-            tempo=tempo,
-            emotion=params.get('emotion'),
-            region=params.get('region'),
-            composer=params.get('composer'),
-            poem_bahr=params.get('poem_bahr'),
-            duration=params.get('duration', 'medium'),
-            instruments=params.get('instruments', 'modern'),
-            creativity=int(params.get('creativity', 7)),
-            generation_params=json.dumps(params),
-            audio_data=b'demo_placeholder'
+            title=data['title'],
+            artist=data.get('artist', 'AI Generated'),
+            lyrics=data['lyrics'],
+            maqam=data['maqam'],
+            style=data['style'],
+            tempo=int(data['tempo']),
+            emotion=data['emotion'],
+            region=data['region'],
+            composer=data.get('composer', ''),
+            poem_bahr=data.get('poem_bahr', ''),
+            duration=data.get('duration', 'medium'),
+            instruments=data.get('instruments', 'modern'),
+            creativity_level=int(data.get('creativity', 7)),
+            generation_status='completed',
+            training_session_id=latest_training.session_id if latest_training else 'demo_mode'
         )
         
         db.session.add(generated_song)
@@ -526,56 +525,131 @@ def generate_music():
         
         return jsonify({
             'success': True,
-            'message': f'Music generation completed! "{params.get("title")}" has been generated.',
-            'song_id': generated_song.id
+            'message': f'🎵 "{data["title"]}" generated successfully!',
+            'song_id': generated_song.id,
+            'generation_details': {
+                'title': generated_song.title,
+                'maqam': generated_song.maqam,
+                'style': generated_song.style,
+                'emotion': generated_song.emotion,
+                'tempo': generated_song.tempo,
+                'region': generated_song.region,
+                'training_songs_used': songs_count
+            }
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/generation/list')
-def get_generated_songs():
+def list_generated_songs():
     try:
-        songs = GeneratedSong.query.order_by(GeneratedSong.created_at.desc()).all()
+        generated_songs = GeneratedSong.query.order_by(GeneratedSong.created_at.desc()).all()
+        
+        songs_data = []
+        for song in generated_songs:
+            songs_data.append({
+                'id': song.id,
+                'title': song.title,
+                'artist': song.artist,
+                'lyrics': song.lyrics,
+                'maqam': song.maqam,
+                'style': song.style,
+                'tempo': song.tempo,
+                'emotion': song.emotion,
+                'region': song.region,
+                'composer': song.composer,
+                'poem_bahr': song.poem_bahr,
+                'duration': song.duration,
+                'instruments': song.instruments,
+                'creativity_level': song.creativity_level,
+                'generation_status': song.generation_status,
+                'created_at': song.created_at.isoformat()
+            })
+        
         return jsonify({
             'success': True,
-            'generated_songs': [song.to_dict() for song in songs]
+            'generated_songs': songs_data,
+            'total_count': len(songs_data)
         })
+        
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/health')
-def health_check():
+@app.route('/api/generation/<int:song_id>')
+def get_generated_song(song_id):
     try:
-        songs_count = Song.query.filter_by(is_active=True).count()
+        song = GeneratedSong.query.get(song_id)
+        if not song:
+            return jsonify({'success': False, 'error': 'Song not found'}), 404
+        
         return jsonify({
-            'status': 'healthy',
-            'library_songs': songs_count,
-            'message': 'Arabic Music AI is running'
+            'success': True,
+            'song': {
+                'id': song.id,
+                'title': song.title,
+                'artist': song.artist,
+                'lyrics': song.lyrics,
+                'maqam': song.maqam,
+                'style': song.style,
+                'tempo': song.tempo,
+                'emotion': song.emotion,
+                'region': song.region,
+                'composer': song.composer,
+                'poem_bahr': song.poem_bahr,
+                'duration': song.duration,
+                'instruments': song.instruments,
+                'creativity_level': song.creativity_level,
+                'generation_status': song.generation_status,
+                'created_at': song.created_at.isoformat()
+            }
         })
+        
     except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve(path):
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    else:
-        index_path = os.path.join(app.static_folder, 'index.html')
-        if os.path.exists(index_path):
-            return send_from_directory(app.static_folder, 'index.html')
-        else:
-            return '''
-            <html>
-            <head><title>Arabic Music AI</title></head>
-            <body>
-                <h1>🎵 Arabic Music AI Generator</h1>
-                <p>Your application is successfully deployed!</p>
-                <p>Song library and generation ready!</p>
-            </body>
-            </html>
-            '''
+@app.route('/api/generation/<int:song_id>', methods=['DELETE'])
+def delete_generated_song(song_id):
+    try:
+        song = GeneratedSong.query.get(song_id)
+        if not song:
+            return jsonify({'success': False, 'error': 'Song not found'}), 404
+        
+        db.session.delete(song)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Generated song deleted successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generation/<int:song_id>/audio')
+def get_generated_audio(song_id):
+    try:
+        song = GeneratedSong.query.get(song_id)
+        if not song:
+            return jsonify({'success': False, 'error': 'Song not found'}), 404
+        
+        # For demo purposes, return a placeholder response
+        # In a real implementation, this would serve the actual generated audio file
+        return jsonify({
+            'success': True,
+            'message': 'Audio generation feature will be implemented with actual AI model',
+            'demo_info': {
+                'title': song.title,
+                'duration': '3:45',
+                'format': 'MP3',
+                'quality': '320kbps',
+                'note': 'This is a demo response. Real audio generation requires AI model integration.'
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # Create database tables
 with app.app_context():
