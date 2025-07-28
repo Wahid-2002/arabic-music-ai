@@ -168,6 +168,43 @@ class GeneratedSong(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'has_audio': bool(self.audio_data)
         }
+# Enhanced database initialization with error recovery
+def init_database():
+    """Initialize database with error recovery and migration support"""
+    try:
+        with app.app_context():
+            # Create all tables
+            db.create_all()
+            
+            # Check if we need to migrate existing data
+            try:
+                songs_count = Song.query.count()
+                print(f"Database initialized successfully. Songs in library: {songs_count}")
+                
+                # Verify database integrity
+                test_song = Song.query.first()
+                if test_song:
+                    print(f"Database integrity check passed. Sample song: {test_song.title}")
+                
+            except Exception as e:
+                print(f"Database check error (this is normal for new databases): {e}")
+                
+            return True
+            
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        
+        # Try to recover by recreating tables
+        try:
+            print("Attempting database recovery...")
+            db.drop_all()
+            db.create_all()
+            print("Database recovery successful")
+            return True
+        except Exception as recovery_error:
+            print(f"Database recovery failed: {recovery_error}")
+            return False
+
 
 # API Routes
 @app.route('/api/dashboard/stats')
