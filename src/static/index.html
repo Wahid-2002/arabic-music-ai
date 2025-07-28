@@ -436,15 +436,220 @@
 
         <!-- Generate Tab -->
         <div id="generate" class="tab-content">
-            <h2>Generate New Song</h2>
-            <div class="generate-form">
-                <label for="generate-lyrics">Input Lyrics/Poem *</label>
-                <textarea id="generate-lyrics" rows="6" placeholder="Enter Arabic lyrics or poem here..."></textarea>
-                <button class="generate-btn">Generate Music</button>
+            <div class="generation-container">
+                <h2>🎼 Generate Arabic Music</h2>
+                
+                <!-- Generation Form -->
+                <div class="generation-section">
+                    <h3>Music Generation Parameters</h3>
+                    <form id="generation-form" class="generation-form">
+                        <div class="form-grid">
+                            <!-- Basic Information -->
+                            <div class="form-group full-width">
+                                <label for="gen-title">Song Title *</label>
+                                <input type="text" id="gen-title" name="title" required placeholder="Enter the title for your generated song">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="gen-artist">Artist Name</label>
+                                <input type="text" id="gen-artist" name="artist" placeholder="AI Generated" value="AI Generated">
+                            </div>
+                            
+                            <!-- Lyrics Input -->
+                            <div class="form-group full-width">
+                                <label for="gen-lyrics">Arabic Lyrics/Poem *</label>
+                                <textarea id="gen-lyrics" name="lyrics" rows="6" required 
+                                    placeholder="أدخل الكلمات العربية أو القصيدة هنا...
+مثال:
+يا ليل الصب متى غدي
+أقيام الساعة موعدي"></textarea>
+                                <small>Enter the Arabic lyrics or poem that will guide the melody generation</small>
+                            </div>
+                            
+                            <!-- Musical Parameters -->
+                            <div class="form-group">
+                                <label for="gen-maqam">Maqam *</label>
+                                <select id="gen-maqam" name="maqam" required>
+                                    <option value="">Select Maqam</option>
+                                    <option value="Hijaz">Hijaz (حجاز)</option>
+                                    <option value="Bayati">Bayati (بياتي)</option>
+                                    <option value="Saba">Saba (صبا)</option>
+                                    <option value="Rast">Rast (راست)</option>
+                                    <option value="Kurd">Kurd (كرد)</option>
+                                    <option value="Nahawand">Nahawand (نهاوند)</option>
+                                    <option value="Ajam">Ajam (عجم)</option>
+                                    <option value="Unknown">Let AI Choose</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="gen-style">Musical Style *</label>
+                                <select id="gen-style" name="style" required>
+                                    <option value="">Select Style</option>
+                                    <option value="Classical">Classical (كلاسيكي)</option>
+                                    <option value="Folk">Folk (شعبي)</option>
+                                    <option value="Modern">Modern (حديث)</option>
+                                    <option value="Traditional">Traditional (تراثي)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="gen-tempo">Tempo (BPM) *</label>
+                                <input type="range" id="gen-tempo" name="tempo" min="60" max="180" value="120" 
+                                    oninput="document.getElementById('tempo-value').textContent = this.value">
+                                <div class="tempo-display">
+                                    <span>Slow (60)</span>
+                                    <span id="tempo-value">120</span>
+                                    <span>Fast (180)</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="gen-emotion">Emotion *</label>
+                                <select id="gen-emotion" name="emotion" required>
+                                    <option value="">Select Emotion</option>
+                                    <option value="Happy">Happy (سعيد)</option>
+                                    <option value="Sad">Sad (حزين)</option>
+                                    <option value="Romantic">Romantic (رومانسي)</option>
+                                    <option value="Dramatic">Dramatic (درامي)</option>
+                                    <option value="Melancholic">Melancholic (كئيب)</option>
+                                    <option value="Energetic">Energetic (حيوي)</option>
+                                    <option value="Peaceful">Peaceful (هادئ)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="gen-region">Regional Style *</label>
+                                <select id="gen-region" name="region" required>
+                                    <option value="">Select Region</option>
+                                    <option value="Egyptian">Egyptian (مصري)</option>
+                                    <option value="Lebanese">Lebanese (لبناني)</option>
+                                    <option value="Syrian">Syrian (سوري)</option>
+                                    <option value="Iraqi">Iraqi (عراقي)</option>
+                                    <option value="Moroccan">Moroccan (مغربي)</option>
+                                    <option value="Tunisian">Tunisian (تونسي)</option>
+                                    <option value="Gulf">Gulf (خليجي)</option>
+                                    <option value="Sudan">Sudan (سوداني)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Optional Parameters -->
+                            <div class="form-group">
+                                <label for="gen-composer">Composer Style</label>
+                                <input type="text" id="gen-composer" name="composer" 
+                                    placeholder="e.g., Mohammed Abdel Wahab, Fairuz, etc.">
+                                <small>Optional: Generate in the style of a specific composer</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="gen-poem-bahr">Poem Bahr (Meter)</label>
+                                <select id="gen-poem-bahr" name="poem_bahr">
+                                    <option value="">Auto-detect from lyrics</option>
+                                    <option value="Baseet">Baseet (بسيط)</option>
+                                    <option value="Kamel">Kamel (كامل)</option>
+                                    <option value="Wafer">Wafer (وافر)</option>
+                                    <option value="Taweel">Taweel (طويل)</option>
+                                    <option value="Motaqareb">Motaqareb (متقارب)</option>
+                                    <option value="Motadarak">Motadarak (متدارك)</option>
+                                    <option value="Hazj">Hazj (هزج)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Advanced Options -->
+                            <div class="form-group full-width">
+                                <label>Advanced Generation Options</label>
+                                <div class="advanced-options">
+                                    <div class="option-group">
+                                        <label for="gen-duration">Song Duration</label>
+                                        <select id="gen-duration" name="duration">
+                                            <option value="short">Short (1-2 minutes)</option>
+                                            <option value="medium" selected>Medium (2-4 minutes)</option>
+                                            <option value="long">Long (4-6 minutes)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="option-group">
+                                        <label for="gen-instruments">Instrumentation</label>
+                                        <select id="gen-instruments" name="instruments">
+                                            <option value="traditional">Traditional Arabic</option>
+                                            <option value="modern" selected>Modern Arrangement</option>
+                                            <option value="minimal">Minimal (Voice + Oud)</option>
+                                            <option value="orchestral">Full Orchestra</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="option-group">
+                                        <label for="gen-creativity">AI Creativity Level</label>
+                                        <input type="range" id="gen-creativity" name="creativity" min="1" max="10" value="7"
+                                            oninput="document.getElementById('creativity-value').textContent = this.value">
+                                        <div class="creativity-display">
+                                            <span>Conservative (1)</span>
+                                            <span id="creativity-value">7</span>
+                                            <span>Very Creative (10)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Actions -->
+                        <div class="generation-actions">
+                            <button type="submit" id="generate-btn" class="generate-btn">
+                                🎵 Generate Music
+                            </button>
+                            <button type="button" id="preview-params-btn" class="preview-btn" onclick="previewParameters()">
+                                👁️ Preview Parameters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Generation Status -->
+                <div class="generation-section">
+                    <h3>Generation Status</h3>
+                    <div class="generation-status" id="generation-status">
+                        <div class="status-message">
+                            <span class="status-icon">⏸️</span>
+                            <span class="status-text">Ready to generate music</span>
+                        </div>
+                        <div class="generation-progress" id="generation-progress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="gen-progress-fill"></div>
+                            </div>
+                            <div class="progress-text">
+                                <span id="gen-progress-text">Analyzing lyrics...</span>
+                                <span id="gen-progress-percentage">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Generated Songs -->
+                <div class="generation-section">
+                    <h3>Generated Songs</h3>
+                    <div class="generated-songs" id="generated-songs">
+                        <p>No songs generated yet. Fill in the parameters above and click "Generate Music" to create your first AI-generated Arabic song!</p>
+                    </div>
+                </div>
+                
+                <!-- Quick Examples -->
+                <div class="generation-section">
+                    <h3>Quick Examples</h3>
+                    <div class="example-buttons">
+                        <button class="example-btn" onclick="loadExample('romantic')">
+                            💕 Romantic Song
+                        </button>
+                        <button class="example-btn" onclick="loadExample('traditional')">
+                            🏛️ Traditional Song
+                        </button>
+                        <button class="example-btn" onclick="loadExample('modern')">
+                            🎤 Modern Song
+                        </button>
+                        <button class="example-btn" onclick="loadExample('folk')">
+                            🎭 Folk Song
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <script src="script.js"></script>
-</body>
-</html>
