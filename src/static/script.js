@@ -2,33 +2,88 @@
 let selectedAudioFile = null;
 let generationInProgress = false;
 
-// Initialize application
+// Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Arabic Music AI - Initializing...');
+    console.log('Arabic Music AI - Starting initialization...');
     
-    // Initialize tabs
+    // Initialize tabs first
     initializeTabs();
     
     // Initialize file upload
     setupFileUpload();
     
-    // Initialize forms
-    const uploadForm = document.getElementById('upload-form');
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', handleUpload);
-    }
-    
-    const generationForm = document.getElementById('generation-form');
-    if (generationForm) {
-        generationForm.addEventListener('submit', handleGeneration);
-    }
+    // Initialize forms with proper event listeners
+    initializeForms();
     
     // Load initial data
     loadDashboardData();
     loadLibrarySongs();
     
-    console.log('Arabic Music AI - Initialized successfully');
+    console.log('Arabic Music AI - Initialization complete');
 });
+
+// Initialize all forms and buttons
+function initializeForms() {
+    // Upload form
+    const uploadForm = document.getElementById('upload-form');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', handleUpload);
+        console.log('Upload form initialized');
+    }
+    
+    // Generation form
+    const generationForm = document.getElementById('generation-form');
+    if (generationForm) {
+        generationForm.addEventListener('submit', handleGeneration);
+        console.log('Generation form initialized');
+    }
+    
+    // Browse button
+    const browseBtn = document.querySelector('.browse-btn');
+    if (browseBtn) {
+        browseBtn.addEventListener('click', function() {
+            document.getElementById('audio-file').click();
+        });
+        console.log('Browse button initialized');
+    }
+    
+    // Remove file button
+    const removeBtn = document.querySelector('.remove-file');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', removeSelectedFile);
+        console.log('Remove file button initialized');
+    }
+    
+    // Tempo slider
+    const tempoSlider = document.getElementById('tempo');
+    const tempoValue = document.getElementById('tempo-value');
+    if (tempoSlider && tempoValue) {
+        tempoSlider.addEventListener('input', function() {
+            tempoValue.textContent = this.value + ' BPM';
+        });
+        console.log('Tempo slider initialized');
+    }
+    
+    // Generation tempo slider
+    const genTempoSlider = document.getElementById('gen-tempo');
+    const genTempoValue = document.getElementById('gen-tempo-value');
+    if (genTempoSlider && genTempoValue) {
+        genTempoSlider.addEventListener('input', function() {
+            genTempoValue.textContent = this.value + ' BPM';
+        });
+        console.log('Generation tempo slider initialized');
+    }
+    
+    // Creativity slider
+    const creativitySlider = document.getElementById('gen-creativity');
+    const creativityValue = document.getElementById('gen-creativity-value');
+    if (creativitySlider && creativityValue) {
+        creativitySlider.addEventListener('input', function() {
+            creativityValue.textContent = this.value + '/10';
+        });
+        console.log('Creativity slider initialized');
+    }
+}
 
 // Tab functionality
 function initializeTabs() {
@@ -38,6 +93,7 @@ function initializeTabs() {
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetTab = btn.getAttribute('data-tab');
+            console.log('Switching to tab:', targetTab);
             
             // Remove active class from all tabs and contents
             tabBtns.forEach(b => b.classList.remove('active'));
@@ -55,59 +111,75 @@ function initializeTabs() {
                 loadDashboardData();
             } else if (targetTab === 'library') {
                 loadLibrarySongs();
-            } else if (targetTab === 'train') {
-                setTimeout(() => {
-                    checkTrainingPrerequisites();
-                    checkTrainingStatus();
-                    loadTrainingHistory();
-                }, 100);
+            } else if (targetTab === 'upload') {
+                // Re-initialize upload functionality when switching to upload tab
+                setTimeout(setupFileUpload, 100);
             } else if (targetTab === 'generate') {
                 setTimeout(() => {
                     loadGeneratedSongs();
+                    initializeGenerationForm();
                 }, 100);
             }
         });
     });
+    
+    console.log('Tabs initialized');
 }
 
 // File upload functionality
 function setupFileUpload() {
     const fileInput = document.getElementById('audio-file');
     const uploadArea = document.getElementById('file-upload-area');
-    const fileSelected = document.getElementById('file-selected');
     
-    if (!fileInput || !uploadArea) return;
+    if (!fileInput || !uploadArea) {
+        console.log('File upload elements not found');
+        return;
+    }
     
-    // File input change
-    fileInput.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-            handleFileSelect(e.target.files[0]);
-        }
-    });
+    // Remove existing listeners to avoid duplicates
+    fileInput.removeEventListener('change', handleFileInputChange);
+    uploadArea.removeEventListener('dragover', handleDragOver);
+    uploadArea.removeEventListener('dragleave', handleDragLeave);
+    uploadArea.removeEventListener('drop', handleDrop);
     
-    // Drag and drop
-    uploadArea.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadArea.classList.add('drag-over');
-    });
+    // Add new listeners
+    fileInput.addEventListener('change', handleFileInputChange);
+    uploadArea.addEventListener('dragover', handleDragOver);
+    uploadArea.addEventListener('dragleave', handleDragLeave);
+    uploadArea.addEventListener('drop', handleDrop);
     
-    uploadArea.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        uploadArea.classList.remove('drag-over');
-    });
+    console.log('File upload setup complete');
+}
+
+function handleFileInputChange(e) {
+    if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+    }
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
     
-    uploadArea.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadArea.classList.remove('drag-over');
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFileSelect(files[0]);
-        }
-    });
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFileSelect(files[0]);
+    }
 }
 
 function handleFileSelect(file) {
+    console.log('File selected:', file.name);
+    
     const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/flac', 'audio/m4a', 'audio/mpeg'];
     
     if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|flac|m4a)$/i)) {
@@ -128,12 +200,15 @@ function handleFileSelect(file) {
         fileSize.textContent = formatFileSize(file.size);
         fileSelected.style.display = 'block';
         uploadArea.style.display = 'none';
+        
+        console.log('File UI updated successfully');
+    } else {
+        console.log('File UI elements not found');
     }
-    
-    console.log('File selected:', file.name);
 }
 
 function removeSelectedFile() {
+    console.log('Removing selected file');
     selectedAudioFile = null;
     
     const fileSelected = document.getElementById('file-selected');
@@ -186,12 +261,16 @@ function updateDashboardStats(stats) {
 // Library functionality
 async function loadLibrarySongs() {
     try {
+        console.log('Loading library songs...');
         const response = await fetch('/api/library/songs');
         const data = await response.json();
         
         if (data.success) {
             displayLibrarySongs(data.songs);
             updateLibraryStats(data.songs);
+            console.log('Library songs loaded:', data.songs.length);
+        } else {
+            console.error('Failed to load library songs:', data.error);
         }
     } catch (error) {
         console.error('Error loading library songs:', error);
@@ -200,10 +279,13 @@ async function loadLibrarySongs() {
 
 function displayLibrarySongs(songs) {
     const container = document.getElementById('library-songs');
-    if (!container) return;
+    if (!container) {
+        console.log('Library songs container not found');
+        return;
+    }
     
     if (songs.length === 0) {
-        container.innerHTML = '<p>No songs in library yet. Upload songs to build your collection!</p>';
+        container.innerHTML = '<p>No songs in library yet. Go to "Upload Songs" tab to build your collection!</p>';
         return;
     }
     
@@ -234,6 +316,8 @@ function displayLibrarySongs(songs) {
             </div>
         </div>
     `).join('');
+    
+    console.log('Library songs displayed');
 }
 
 function updateLibraryStats(songs) {
@@ -258,17 +342,18 @@ function updateLibraryStats(songs) {
 }
 
 function refreshLibrary() {
+    console.log('Refreshing library...');
     loadLibrarySongs();
 }
 
 function exportLibrary() {
-    // Placeholder for export functionality
     alert('Export functionality will be implemented in the next update!');
 }
 
 // Upload functionality
 async function handleUpload(event) {
     event.preventDefault();
+    console.log('Upload form submitted');
     
     if (!selectedAudioFile) {
         alert('Please select an audio file first');
@@ -279,17 +364,24 @@ async function handleUpload(event) {
     formData.append('audio_file', selectedAudioFile);
     
     const uploadBtn = document.getElementById('upload-btn');
+    if (!uploadBtn) {
+        console.error('Upload button not found');
+        return;
+    }
+    
     const originalText = uploadBtn.textContent;
     uploadBtn.textContent = 'Uploading...';
     uploadBtn.disabled = true;
     
     try {
+        console.log('Sending upload request...');
         const response = await fetch('/api/songs/upload', {
             method: 'POST',
             body: formData
         });
         
         const result = await response.json();
+        console.log('Upload response:', result);
         
         if (result.success) {
             alert('Song uploaded successfully to library!');
@@ -309,13 +401,12 @@ async function handleUpload(event) {
     }
 }
 
-// Song management
-async function editSong(songId) {
-    // Placeholder for edit functionality
+// Song management functions (global scope for onclick)
+window.editSong = async function(songId) {
     alert(`Edit functionality for song ${songId} will be implemented in the next update!`);
-}
+};
 
-async function deleteSong(songId) {
+window.deleteSong = async function(songId) {
     if (confirm('Are you sure you want to remove this song from the library?')) {
         try {
             const response = await fetch(`/api/songs/${songId}`, {
@@ -336,22 +427,40 @@ async function deleteSong(songId) {
             alert('Delete failed. Please try again.');
         }
     }
-}
+};
 
 // Generation functionality
+function initializeGenerationForm() {
+    const generateBtn = document.getElementById('generate-btn');
+    if (generateBtn) {
+        generateBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = document.getElementById('generation-form');
+            if (form) {
+                handleGeneration({ target: form, preventDefault: () => {} });
+            }
+        });
+        console.log('Generation button initialized');
+    }
+}
+
 async function handleGeneration(event) {
     event.preventDefault();
+    console.log('Generation form submitted');
     
     if (generationInProgress) {
         alert('Generation already in progress. Please wait...');
         return;
     }
     
-    const formData = new FormData(event.target);
+    const form = event.target;
+    const formData = new FormData(form);
     const params = {};
     for (let [key, value] of formData.entries()) {
         params[key] = value;
     }
+    
+    console.log('Generation parameters:', params);
     
     // Check required fields
     const requiredFields = ['title', 'lyrics', 'maqam', 'style', 'tempo', 'emotion', 'region'];
@@ -375,6 +484,7 @@ async function handleGeneration(event) {
         });
         
         const result = await response.json();
+        console.log('Generation response:', result);
         
         if (result.success) {
             await simulateGenerationProgress();
@@ -419,20 +529,20 @@ function updateGenerationStatus(status) {
     const progressContainer = document.getElementById('generation-progress');
     const generateBtn = document.getElementById('generate-btn');
     
-    if (!statusIcon || !statusText || !generateBtn) return;
+    if (!generateBtn) return;
     
     switch (status) {
         case 'ready':
-            statusIcon.textContent = '⏸️';
-            statusText.textContent = 'Ready to generate music';
+            if (statusIcon) statusIcon.textContent = '⏸️';
+            if (statusText) statusText.textContent = 'Ready to generate music';
             if (progressContainer) progressContainer.style.display = 'none';
             generateBtn.disabled = false;
             generateBtn.textContent = '🎵 Generate Music';
             break;
             
         case 'generating':
-            statusIcon.textContent = '🎵';
-            statusText.textContent = 'Generating Arabic music...';
+            if (statusIcon) statusIcon.textContent = '🎵';
+            if (statusText) statusText.textContent = 'Generating Arabic music...';
             if (progressContainer) progressContainer.style.display = 'block';
             generateBtn.disabled = true;
             generateBtn.textContent = '🔄 Generating...';
@@ -503,29 +613,17 @@ function displayGeneratedSongs(songs) {
     `).join('');
 }
 
-function playSong(songId) {
+// Global functions for generated songs
+window.playSong = function(songId) {
     alert(`🎵 Playing song ${songId}... (Audio playback will be implemented with actual generation)`);
-}
+};
 
-function downloadSong(songId) {
+window.downloadSong = function(songId) {
     alert(`⬇️ Downloading song ${songId}... (Download will be implemented with actual generation)`);
-}
-
-// Training functionality placeholders
-function checkTrainingPrerequisites() {
-    // Placeholder
-}
-
-function checkTrainingStatus() {
-    // Placeholder
-}
-
-function loadTrainingHistory() {
-    // Placeholder
-}
+};
 
 // Example loading functions
-function loadExample(type) {
+window.loadExample = function(type) {
     const examples = {
         romantic: {
             title: 'حبيبي يا نور العين',
@@ -584,9 +682,9 @@ function loadExample(type) {
     });
     
     alert(`✨ Loaded ${type} song example! You can modify the parameters and generate.`);
-}
+};
 
-function previewParameters() {
+window.previewParameters = function() {
     const form = document.getElementById('generation-form');
     if (!form) return;
     
@@ -620,4 +718,4 @@ function previewParameters() {
     `;
     
     alert(preview);
-}
+};
