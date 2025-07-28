@@ -1136,5 +1136,121 @@
             alert(`⬇️ Downloading song ${songId}... (Download will be implemented with actual generation)`);
         };
     </script>
+        <!-- Song Edit Modal -->
+    <div id="edit-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Edit Song</h2>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <form id="edit-form">
+                <input type="hidden" id="edit-song-id" name="song_id">
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="edit-title">Song Title *</label>
+                        <input type="text" id="edit-title" name="title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-artist">Artist *</label>
+                        <input type="text" id="edit-artist" name="artist" required>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="edit-lyrics">Arabic Lyrics *</label>
+                        <textarea id="edit-lyrics" name="lyrics" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-maqam">Maqam *</label>
+                        <select id="edit-maqam" name="maqam" required>
+                            <option value="">Select Maqam</option>
+                            <option value="Unknown">Unknown</option>
+                            <option value="Hijaz">Hijaz</option>
+                            <option value="Bayati">Bayati</option>
+                            <option value="Saba">Saba</option>
+                            <option value="Rast">Rast</option>
+                            <option value="Kurd">Kurd</option>
+                            <option value="Nahawand">Nahawand</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-style">Musical Style *</label>
+                        <select id="edit-style" name="style" required>
+                            <option value="">Select Style</option>
+                            <option value="Traditional">Traditional</option>
+                            <option value="Modern">Modern</option>
+                            <option value="Folk">Folk</option>
+                            <option value="Classical">Classical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-tempo">Tempo (BPM) *</label>
+                        <div class="tempo-container">
+                            <span>Slow (60)</span>
+                            <input type="range" id="edit-tempo" name="tempo" min="60" max="180" value="120" class="tempo-slider">
+                            <span>Fast (180)</span>
+                        </div>
+                        <div class="tempo-value" id="edit-tempo-value">120 BPM</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-emotion">Emotion *</label>
+                        <select id="edit-emotion" name="emotion" required>
+                            <option value="">Select Emotion</option>
+                            <option value="Happy">Happy</option>
+                            <option value="Sad">Sad</option>
+                            <option value="Romantic">Romantic</option>
+                            <option value="Melancholic">Melancholic</option>
+                            <option value="Energetic">Energetic</option>
+                            <option value="Peaceful">Peaceful</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-region">Regional Style *</label>
+                        <select id="edit-region" name="region" required>
+                            <option value="">Select Region</option>
+                            <option value="Egyptian">Egyptian</option>
+                            <option value="Lebanese">Lebanese</option>
+                            <option value="Syrian">Syrian</option>
+                            <option value="Iraqi">Iraqi</option>
+                            <option value="Moroccan">Moroccan</option>
+                            <option value="Gulf">Gulf</option>
+                            <option value="Sudan">Sudan</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-composer">Composer (Optional)</label>
+                        <input type="text" id="edit-composer" name="composer">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-poem-bahr">Poem Bahr (Optional)</label>
+                        <select id="edit-poem-bahr" name="poem_bahr">
+                            <option value="">Auto-detect</option>
+                            <option value="Baseet">Baseet</option>
+                            <option value="Kamel">Kamel</option>
+                            <option value="Wafer">Wafer</option>
+                            <option value="Taweel">Taweel</option>
+                            <option value="Motaqareb">Motaqareb</option>
+                            <option value="Motadarak">Motadarak</option>
+                            <option value="Hazj">Hazj</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="save-btn">💾 Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>
