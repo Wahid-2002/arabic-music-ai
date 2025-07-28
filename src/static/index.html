@@ -4,20 +4,362 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arabic Music AI Generator</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .tab-btn.active {
+            background: rgba(255,255,255,0.9);
+            color: #667eea;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .tab-content {
+            display: none;
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .file-upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: rgba(102, 126, 234, 0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .file-upload-area:hover,
+        .file-upload-area.drag-over {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: #5a67d8;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .browse-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .browse-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-selected {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .file-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .remove-file {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .songs-list {
+            margin-top: 30px;
+        }
+
+        .song-item {
+            background: rgba(255,255,255,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .song-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .song-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .edit-btn, .delete-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .edit-btn {
+            background: #2196F3;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .tempo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .tempo-slider {
+            flex: 1;
+        }
+
+        .tempo-value {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 80px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .tabs {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .tab-btn {
+                width: 200px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .song-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>🎵 Arabic Music AI Generator</h1>
-                        <nav class="tabs">
+            <nav class="tabs">
                 <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
                 <button class="tab-btn" data-tab="library">📚 Song Library</button>
                 <button class="tab-btn" data-tab="upload">📤 Upload Songs</button>
                 <button class="tab-btn" data-tab="train">🧠 Train Model</button>
                 <button class="tab-btn" data-tab="generate">🎼 Generate Music</button>
             </nav>
-
         </header>
 
         <!-- Dashboard Tab -->
@@ -44,58 +386,121 @@
                     <div class="stat-label">Songs Generated</div>
                 </div>
             </div>
-
-            <div class="activity-section">
+            
+            <div class="recent-activity">
                 <h2>Recent Activity</h2>
                 <div class="activity-item">
                     <div class="activity-icon">ℹ️</div>
-                    <div class="activity-text">Welcome to Arabic Music AI Generator! Start by uploading some songs</div>
-                    <div class="activity-time">Start by uploading some songs</div>
+                    <div class="activity-text">
+                        <strong>Welcome to Arabic Music AI Generator!</strong>
+                        <p>Start by uploading some songs to build your training dataset.</p>
+                    </div>
                 </div>
             </div>
         </div>
+
         <!-- Song Library Tab -->
         <div id="library" class="tab-content">
-            <div class="library-container">
-                <h2>📚 Song Library</h2>
-                <p class="library-description">Your permanent collection of Arabic songs for AI training. Songs uploaded here are saved forever and won't be lost during system updates.</p>
-                
-                <!-- Library Stats -->
-                <div class="library-stats">
-                    <div class="stat-card">
-                        <div class="stat-number" id="library-total-songs">0</div>
-                        <div class="stat-label">Total Songs</div>
+            <h2>📚 Song Library</h2>
+            <p>Your permanent collection of Arabic songs for AI training. Songs uploaded here are saved forever and won't be lost during system updates.</p>
+            
+            <div class="songs-list" id="library-songs">
+                <p>Loading song library...</p>
+            </div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div id="upload" class="tab-content">
+            <h2>Upload New Song</h2>
+            
+            <!-- File Upload Area -->
+            <div class="file-upload-area" id="file-upload-area">
+                <div class="upload-icon">📁</div>
+                <p>Drag and drop your audio file here, or click to browse</p>
+                <input type="file" id="audio-file" accept=".mp3,.wav,.flac,.m4a" style="display: none;">
+                <button type="button" class="browse-btn" id="browse-btn">Browse Files</button>
+            </div>
+            
+            <!-- File Selected Display -->
+            <div id="file-selected" class="file-selected">
+                <div class="file-info">
+                    <div class="file-details">
+                        <div class="file-name" id="file-name">song.mp3</div>
+                        <div class="file-size" id="file-size">3.2 MB</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="library-total-size">0 MB</div>
-                        <div class="stat-label">Total Size</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="library-maqams">0</div>
-                        <div class="stat-label">Different Maqams</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="library-regions">0</div>
-                        <div class="stat-label">Regions</div>
-                    </div>
+                    <button class="remove-file" id="remove-file">Remove</button>
                 </div>
-                
-                <!-- Library Controls -->
-                <div class="library-controls">
-                    <div class="search-filter-section">
-                        <input type="text" id="library-search" placeholder="Search songs in library..." class="search-input">
-                        <select id="library-filter-maqam" class="filter-select">
-                            <option value="">All Maqams</option>
+            </div>
+            
+            <form id="upload-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="title">Song Title *</label>
+                        <input type="text" id="title" name="title" required placeholder="Enter song title">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="artist">Artist *</label>
+                        <input type="text" id="artist" name="artist" required placeholder="Enter artist name">
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="lyrics">Arabic Lyrics *</label>
+                        <textarea id="lyrics" name="lyrics" required placeholder="Enter the Arabic lyrics"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maqam">Maqam *</label>
+                        <select id="maqam" name="maqam" required>
+                            <option value="">Select Maqam</option>
+                            <option value="Unknown">Unknown</option>
                             <option value="Hijaz">Hijaz</option>
                             <option value="Bayati">Bayati</option>
                             <option value="Saba">Saba</option>
                             <option value="Rast">Rast</option>
                             <option value="Kurd">Kurd</option>
                             <option value="Nahawand">Nahawand</option>
-                            <option value="Unknown">Unknown</option>
                         </select>
-                        <select id="library-filter-region" class="filter-select">
-                            <option value="">All Regions</option>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="style">Musical Style *</label>
+                        <select id="style" name="style" required>
+                            <option value="">Select Style</option>
+                            <option value="Traditional">Traditional</option>
+                            <option value="Modern">Modern</option>
+                            <option value="Folk">Folk</option>
+                            <option value="Classical">Classical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tempo">Tempo (BPM) *</label>
+                        <div class="tempo-container">
+                            <span>Slow (60)</span>
+                            <input type="range" id="tempo" name="tempo" min="60" max="180" value="120" class="tempo-slider">
+                            <span>Fast (180)</span>
+                        </div>
+                        <div class="tempo-value" id="tempo-value">120 BPM</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emotion">Emotion *</label>
+                        <select id="emotion" name="emotion" required>
+                            <option value="">Select Emotion</option>
+                            <option value="Happy">Happy</option>
+                            <option value="Sad">Sad</option>
+                            <option value="Romantic">Romantic</option>
+                            <option value="Melancholic">Melancholic</option>
+                            <option value="Energetic">Energetic</option>
+                            <option value="Peaceful">Peaceful</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="region">Regional Style *</label>
+                        <select id="region" name="region" required>
+                            <option value="">Select Region</option>
                             <option value="Egyptian">Egyptian</option>
                             <option value="Lebanese">Lebanese</option>
                             <option value="Syrian">Syrian</option>
@@ -105,616 +510,631 @@
                             <option value="Sudan">Sudan</option>
                         </select>
                     </div>
-                    <div class="library-actions">
-                        <button class="action-btn" onclick="refreshLibrary()">🔄 Refresh</button>
-                        <button class="action-btn" onclick="exportLibrary()">📤 Export List</button>
+                    
+                    <div class="form-group">
+                        <label for="composer">Composer (Optional)</label>
+                        <input type="text" id="composer" name="composer" placeholder="Enter composer name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="poem_bahr">Poem Bahr (Optional)</label>
+                        <select id="poem_bahr" name="poem_bahr">
+                            <option value="">Auto-detect</option>
+                            <option value="Baseet">Baseet</option>
+                            <option value="Kamel">Kamel</option>
+                            <option value="Wafer">Wafer</option>
+                            <option value="Taweel">Taweel</option>
+                            <option value="Motaqareb">Motaqareb</option>
+                            <option value="Motadarak">Motadarak</option>
+                            <option value="Hazj">Hazj</option>
+                        </select>
                     </div>
                 </div>
                 
-                <!-- Library Songs List -->
-                <div class="library-songs" id="library-songs">
-                    <p>Loading song library...</p>
-                </div>
-            </div>
-        </div>
-
-               <!-- Upload Tab -->
-        <div id="upload" class="tab-content">
-            <div class="upload-section">
-                <h2>Upload New Song</h2>
-                
-                <!-- File Upload Area -->
-                <div class="file-upload-area" id="file-upload-area">
-                    <div class="upload-icon">📁</div>
-                    <p>Drag and drop your audio file here, or click to browse</p>
-                    <input type="file" id="audio-file" accept=".mp3,.wav,.flac,.m4a" style="display: none;">
-                    <button type="button" class="browse-btn" onclick="document.getElementById('audio-file').click()">Browse Files</button>
-                </div>
-                
-                <!-- File Selected Display -->
-                <div id="file-selected" class="file-selected" style="display: none;">
-                    <div class="file-info">
-                        <span class="file-name" id="selected-file-name"></span>
-                        <span class="file-size" id="selected-file-size"></span>
-                        <button type="button" class="remove-file" onclick="removeSelectedFile()">✕</button>
-                    </div>
-                </div>
-
-                <form id="upload-form" enctype="multipart/form-data">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="title">Song Title *</label>
-                            <input type="text" id="title" name="title" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="artist">Artist *</label>
-                            <input type="text" id="artist" name="artist" required>
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="lyrics">Arabic Lyrics *</label>
-                            <textarea id="lyrics" name="lyrics" rows="4" placeholder="Enter Arabic lyrics here..." required></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="maqam">Maqam *</label>
-                            <select id="maqam" name="maqam" required>
-                                <option value="">Select Maqam</option>
-                                <option value="Unknown">Unknown</option>
-                                <option value="Hijaz">Hijaz</option>
-                                <option value="Bayati">Bayati</option>
-                                <option value="Saba">Saba</option>
-                                <option value="Rast">Rast</option>
-                                <option value="Kurd">Kurd</option>
-                                <option value="Nahawand">Nahawand</option>
-                                <option value="Ajam">Ajam</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="style">Style *</label>
-                            <select id="style" name="style" required>
-                                <option value="">Select Style</option>
-                                <option value="Classical">Classical</option>
-                                <option value="Folk">Folk</option>
-                                <option value="Modern">Modern</option>
-                                <option value="Traditional">Traditional</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="tempo">Tempo (BPM) *</label>
-                            <input type="number" id="tempo" name="tempo" min="60" max="180" value="120" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="emotion">Emotion *</label>
-                            <select id="emotion" name="emotion" required>
-                                <option value="">Select Emotion</option>
-                                <option value="Happy">Happy</option>
-                                <option value="Sad">Sad</option>
-                                <option value="Romantic">Romantic</option>
-                                <option value="Dramatic">Dramatic</option>
-                                <option value="Melancholic">Melancholic</option>
-                                <option value="Energetic">Energetic</option>
-                                <option value="Peaceful">Peaceful</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="region">Region *</label>
-                            <select id="region" name="region" required>
-                                <option value="">Select Region</option>
-                                <option value="Egyptian">Egyptian</option>
-                                <option value="Lebanese">Lebanese</option>
-                                <option value="Syrian">Syrian</option>
-                                <option value="Iraqi">Iraqi</option>
-                                <option value="Moroccan">Moroccan</option>
-                                <option value="Tunisian">Tunisian</option>
-                                <option value="Gulf">Gulf</option>
-                                <option value="Sudan">Sudan</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="composer">Composer</label>
-                            <input type="text" id="composer" name="composer">
-                        </div>
-                        <div class="form-group">
-                            <label for="poem_bahr">Poem Bahr</label>
-                            <select id="poem_bahr" name="poem_bahr">
-                                <option value="">Select Bahr</option>
-                                <option value="Baseet">Baseet</option>
-                                <option value="Kamel">Kamel</option>
-                                <option value="Wafer">Wafer</option>
-                                <option value="Taweel">Taweel</option>
-                                <option value="Motaqareb">Motaqareb</option>
-                                <option value="Motadarak">Motadarak</option>
-                                <option value="Hazj">Hazj</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button type="submit" class="upload-btn" id="upload-btn" disabled>Upload Song</button>
-                </form>
-            </div>
-
-                        <div class="songs-list">
+                <button type="submit" class="upload-btn" id="upload-btn">Upload Song</button>
+            </form>
+            
+            <div class="songs-list">
                 <h2>Uploaded Songs</h2>
-                <div class="songs-filter" style="margin-bottom: 20px;">
-                    <input type="text" id="search-songs" placeholder="Search songs..." style="padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px; width: 300px;">
-                    <select id="filter-maqam" style="padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px; margin-left: 10px;">
-                        <option value="">All Maqams</option>
-                        <option value="Unknown">Unknown</option>
-                        <option value="Hijaz">Hijaz</option>
-                        <option value="Bayati">Bayati</option>
-                        <option value="Saba">Saba</option>
-                        <option value="Rast">Rast</option>
-                        <option value="Kurd">Kurd</option>
-                        <option value="Nahawand">Nahawand</option>
-                        <option value="Ajam">Ajam</option>
-                    </select>
-                </div>
-                <div id="songs-container">
+                <div id="uploaded-songs">
                     <p>Loading songs...</p>
                 </div>
             </div>
         </div>
 
-        <!-- Edit Song Modal -->
-        <div id="edit-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Edit Song</h2>
-                    <span class="close" onclick="closeEditModal()">&times;</span>
-                </div>
-                <form id="edit-form">
-                    <input type="hidden" id="edit-song-id">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="edit-title">Song Title *</label>
-                            <input type="text" id="edit-title" name="title" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-artist">Artist *</label>
-                            <input type="text" id="edit-artist" name="artist" required>
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="edit-lyrics">Arabic Lyrics *</label>
-                            <textarea id="edit-lyrics" name="lyrics" rows="4" required></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-maqam">Maqam *</label>
-                            <select id="edit-maqam" name="maqam" required>
-                                <option value="">Select Maqam</option>
-                                <option value="Unknown">Unknown</option>
-                                <option value="Hijaz">Hijaz</option>
-                                <option value="Bayati">Bayati</option>
-                                <option value="Saba">Saba</option>
-                                <option value="Rast">Rast</option>
-                                <option value="Kurd">Kurd</option>
-                                <option value="Nahawand">Nahawand</option>
-                                <option value="Ajam">Ajam</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-style">Style *</label>
-                            <select id="edit-style" name="style" required>
-                                <option value="">Select Style</option>
-                                <option value="Classical">Classical</option>
-                                <option value="Folk">Folk</option>
-                                <option value="Modern">Modern</option>
-                                <option value="Traditional">Traditional</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-tempo">Tempo (BPM) *</label>
-                            <input type="number" id="edit-tempo" name="tempo" min="60" max="180" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-emotion">Emotion *</label>
-                            <select id="edit-emotion" name="emotion" required>
-                                <option value="">Select Emotion</option>
-                                <option value="Happy">Happy</option>
-                                <option value="Sad">Sad</option>
-                                <option value="Romantic">Romantic</option>
-                                <option value="Dramatic">Dramatic</option>
-                                <option value="Melancholic">Melancholic</option>
-                                <option value="Energetic">Energetic</option>
-                                <option value="Peaceful">Peaceful</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-region">Region *</label>
-                            <select id="edit-region" name="region" required>
-                                <option value="">Select Region</option>
-                                <option value="Egyptian">Egyptian</option>
-                                <option value="Lebanese">Lebanese</option>
-                                <option value="Syrian">Syrian</option>
-                                <option value="Iraqi">Iraqi</option>
-                                <option value="Moroccan">Moroccan</option>
-                                <option value="Tunisian">Tunisian</option>
-                                <option value="Gulf">Gulf</option>
-                                <option value="Sudan">Sudan</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-composer">Composer</label>
-                            <input type="text" id="edit-composer" name="composer">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-poem-bahr">Poem Bahr</label>
-                            <select id="edit-poem-bahr" name="poem_bahr">
-                                <option value="">Select Bahr</option>
-                                <option value="Baseet">Baseet</option>
-                                <option value="Kamel">Kamel</option>
-                                <option value="Wafer">Wafer</option>
-                                <option value="Taweel">Taweel</option>
-                                <option value="Motaqareb">Motaqareb</option>
-                                <option value="Motadarak">Motadarak</option>
-                                <option value="Hazj">Hazj</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" onclick="closeEditModal()" class="cancel-btn">Cancel</button>
-                        <button type="submit" class="save-btn">Save Changes</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-
-
-               <!-- Train Tab -->
+        <!-- Train Tab -->
         <div id="train" class="tab-content">
-            <div class="training-container">
-                <h2>🧠 AI Model Training</h2>
-                
-                <!-- Training Prerequisites -->
-                <div class="training-section">
-                    <h3>Training Prerequisites</h3>
-                    <div class="prerequisites-grid">
-                        <div class="prereq-item" id="songs-prereq">
-                            <div class="prereq-icon">🎵</div>
-                            <div class="prereq-text">
-                                <strong>Songs Uploaded</strong>
-                                <span id="prereq-songs-count">0</span>
-                                <small>Minimum: 10 songs recommended</small>
-                            </div>
-                            <div class="prereq-status" id="songs-status">❌</div>
-                        </div>
-                        <div class="prereq-item" id="lyrics-prereq">
-                            <div class="prereq-icon">📝</div>
-                            <div class="prereq-text">
-                                <strong>Arabic Lyrics</strong>
-                                <span id="prereq-lyrics-count">0</span>
-                                <small>All songs must have lyrics</small>
-                            </div>
-                            <div class="prereq-status" id="lyrics-status">❌</div>
-                        </div>
-                        <div class="prereq-item" id="metadata-prereq">
-                            <div class="prereq-icon">🏷️</div>
-                            <div class="prereq-text">
-                                <strong>Complete Metadata</strong>
-                                <span id="prereq-metadata-count">0</span>
-                                <small>Maqam, style, emotion, etc.</small>
-                            </div>
-                            <div class="prereq-status" id="metadata-status">❌</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Training Configuration -->
-                <div class="training-section">
-                    <h3>Training Configuration</h3>
-                    <div class="training-config">
-                        <div class="config-group">
-                            <label for="training-epochs">Training Epochs</label>
-                            <select id="training-epochs">
-                                <option value="10">10 (Quick - 30 minutes)</option>
-                                <option value="25" selected>25 (Balanced - 1 hour)</option>
-                                <option value="50">50 (Thorough - 2 hours)</option>
-                                <option value="100">100 (Intensive - 4 hours)</option>
-                            </select>
-                        </div>
-                        <div class="config-group">
-                            <label for="learning-rate">Learning Rate</label>
-                            <select id="learning-rate">
-                                <option value="0.001">0.001 (Conservative)</option>
-                                <option value="0.01" selected>0.01 (Balanced)</option>
-                                <option value="0.1">0.1 (Aggressive)</option>
-                            </select>
-                        </div>
-                        <div class="config-group">
-                            <label for="batch-size">Batch Size</label>
-                            <select id="batch-size">
-                                <option value="4">4 (Small dataset)</option>
-                                <option value="8" selected>8 (Medium dataset)</option>
-                                <option value="16">16 (Large dataset)</option>
-                            </select>
-                        </div>
-                        <div class="config-group">
-                            <label for="focus-area">Training Focus</label>
-                            <select id="focus-area">
-                                <option value="melody">Melody Generation</option>
-                                <option value="rhythm">Rhythm Patterns</option>
-                                <option value="harmony">Harmonic Structure</option>
-                                <option value="balanced" selected>Balanced (All aspects)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Training Status -->
-                <div class="training-section">
-                    <h3>Training Status</h3>
-                    <div class="training-status-card" id="training-status-card">
-                        <div class="status-header">
-                            <div class="status-icon" id="status-icon">⏸️</div>
-                            <div class="status-text">
-                                <h4 id="status-title">Ready to Train</h4>
-                                <p id="status-description">Configure settings and start training when ready</p>
-                            </div>
-                        </div>
-                        <div class="progress-container" id="progress-container" style="display: none;">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="progress-fill"></div>
-                            </div>
-                            <div class="progress-text">
-                                <span id="progress-percentage">0%</span>
-                                <span id="progress-eta">ETA: --</span>
-                            </div>
-                        </div>
-                        <div class="training-metrics" id="training-metrics" style="display: none;">
-                            <div class="metric">
-                                <label>Current Epoch:</label>
-                                <span id="current-epoch">0</span>
-                            </div>
-                            <div class="metric">
-                                <label>Loss:</label>
-                                <span id="current-loss">--</span>
-                            </div>
-                            <div class="metric">
-                                <label>Accuracy:</label>
-                                <span id="current-accuracy">--</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Training Actions -->
-                <div class="training-actions">
-                    <button id="start-training-btn" class="training-btn start-btn" onclick="startTraining()" disabled>
-                        🚀 Start Training
-                    </button>
-                    <button id="stop-training-btn" class="training-btn stop-btn" onclick="stopTraining()" style="display: none;">
-                        ⏹️ Stop Training
-                    </button>
-                    <button id="reset-model-btn" class="training-btn reset-btn" onclick="resetModel()">
-                        🔄 Reset Model
-                    </button>
-                </div>
-
-                <!-- Training History -->
-                <div class="training-section">
-                    <h3>Training History</h3>
-                    <div class="training-history" id="training-history">
-                        <p>No training sessions yet.</p>
-                    </div>
-                </div>
+            <h2>🧠 AI Model Training</h2>
+            <p>Train the AI model with your uploaded songs to generate new Arabic music.</p>
+            
+            <div class="training-info">
+                <p>Training functionality will be available once you have uploaded at least 5 songs.</p>
             </div>
         </div>
-
 
         <!-- Generate Tab -->
         <div id="generate" class="tab-content">
-            <div class="generation-container">
-                <h2>🎼 Generate Arabic Music</h2>
-                
-                <!-- Generation Form -->
-                <div class="generation-section">
-                    <h3>Music Generation Parameters</h3>
-                    <form id="generation-form" class="generation-form">
-                        <div class="form-grid">
-                            <!-- Basic Information -->
-                            <div class="form-group full-width">
-                                <label for="gen-title">Song Title *</label>
-                                <input type="text" id="gen-title" name="title" required placeholder="Enter the title for your generated song">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="gen-artist">Artist Name</label>
-                                <input type="text" id="gen-artist" name="artist" placeholder="AI Generated" value="AI Generated">
-                            </div>
-                            
-                            <!-- Lyrics Input -->
-                            <div class="form-group full-width">
-                                <label for="gen-lyrics">Arabic Lyrics/Poem *</label>
-                                <textarea id="gen-lyrics" name="lyrics" rows="6" required 
-                                    placeholder="أدخل الكلمات العربية أو القصيدة هنا...
-مثال:
-يا ليل الصب متى غدي
-أقيام الساعة موعدي"></textarea>
-                                <small>Enter the Arabic lyrics or poem that will guide the melody generation</small>
-                            </div>
-                            
-                            <!-- Musical Parameters -->
-                            <div class="form-group">
-                                <label for="gen-maqam">Maqam *</label>
-                                <select id="gen-maqam" name="maqam" required>
-                                    <option value="">Select Maqam</option>
-                                    <option value="Hijaz">Hijaz (حجاز)</option>
-                                    <option value="Bayati">Bayati (بياتي)</option>
-                                    <option value="Saba">Saba (صبا)</option>
-                                    <option value="Rast">Rast (راست)</option>
-                                    <option value="Kurd">Kurd (كرد)</option>
-                                    <option value="Nahawand">Nahawand (نهاوند)</option>
-                                    <option value="Ajam">Ajam (عجم)</option>
-                                    <option value="Unknown">Let AI Choose</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="gen-style">Musical Style *</label>
-                                <select id="gen-style" name="style" required>
-                                    <option value="">Select Style</option>
-                                    <option value="Classical">Classical (كلاسيكي)</option>
-                                    <option value="Folk">Folk (شعبي)</option>
-                                    <option value="Modern">Modern (حديث)</option>
-                                    <option value="Traditional">Traditional (تراثي)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="gen-tempo">Tempo (BPM) *</label>
-                                <input type="range" id="gen-tempo" name="tempo" min="60" max="180" value="120" 
-                                    oninput="document.getElementById('tempo-value').textContent = this.value">
-                                <div class="tempo-display">
-                                    <span>Slow (60)</span>
-                                    <span id="tempo-value">120</span>
-                                    <span>Fast (180)</span>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="gen-emotion">Emotion *</label>
-                                <select id="gen-emotion" name="emotion" required>
-                                    <option value="">Select Emotion</option>
-                                    <option value="Happy">Happy (سعيد)</option>
-                                    <option value="Sad">Sad (حزين)</option>
-                                    <option value="Romantic">Romantic (رومانسي)</option>
-                                    <option value="Dramatic">Dramatic (درامي)</option>
-                                    <option value="Melancholic">Melancholic (كئيب)</option>
-                                    <option value="Energetic">Energetic (حيوي)</option>
-                                    <option value="Peaceful">Peaceful (هادئ)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="gen-region">Regional Style *</label>
-                                <select id="gen-region" name="region" required>
-                                    <option value="">Select Region</option>
-                                    <option value="Egyptian">Egyptian (مصري)</option>
-                                    <option value="Lebanese">Lebanese (لبناني)</option>
-                                    <option value="Syrian">Syrian (سوري)</option>
-                                    <option value="Iraqi">Iraqi (عراقي)</option>
-                                    <option value="Moroccan">Moroccan (مغربي)</option>
-                                    <option value="Tunisian">Tunisian (تونسي)</option>
-                                    <option value="Gulf">Gulf (خليجي)</option>
-                                    <option value="Sudan">Sudan (سوداني)</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Optional Parameters -->
-                            <div class="form-group">
-                                <label for="gen-composer">Composer Style</label>
-                                <input type="text" id="gen-composer" name="composer" 
-                                    placeholder="e.g., Mohammed Abdel Wahab, Fairuz, etc.">
-                                <small>Optional: Generate in the style of a specific composer</small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="gen-poem-bahr">Poem Bahr (Meter)</label>
-                                <select id="gen-poem-bahr" name="poem_bahr">
-                                    <option value="">Auto-detect from lyrics</option>
-                                    <option value="Baseet">Baseet (بسيط)</option>
-                                    <option value="Kamel">Kamel (كامل)</option>
-                                    <option value="Wafer">Wafer (وافر)</option>
-                                    <option value="Taweel">Taweel (طويل)</option>
-                                    <option value="Motaqareb">Motaqareb (متقارب)</option>
-                                    <option value="Motadarak">Motadarak (متدارك)</option>
-                                    <option value="Hazj">Hazj (هزج)</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Advanced Options -->
-                            <div class="form-group full-width">
-                                <label>Advanced Generation Options</label>
-                                <div class="advanced-options">
-                                    <div class="option-group">
-                                        <label for="gen-duration">Song Duration</label>
-                                        <select id="gen-duration" name="duration">
-                                            <option value="short">Short (1-2 minutes)</option>
-                                            <option value="medium" selected>Medium (2-4 minutes)</option>
-                                            <option value="long">Long (4-6 minutes)</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="option-group">
-                                        <label for="gen-instruments">Instrumentation</label>
-                                        <select id="gen-instruments" name="instruments">
-                                            <option value="traditional">Traditional Arabic</option>
-                                            <option value="modern" selected>Modern Arrangement</option>
-                                            <option value="minimal">Minimal (Voice + Oud)</option>
-                                            <option value="orchestral">Full Orchestra</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="option-group">
-                                        <label for="gen-creativity">AI Creativity Level</label>
-                                        <input type="range" id="gen-creativity" name="creativity" min="1" max="10" value="7"
-                                            oninput="document.getElementById('creativity-value').textContent = this.value">
-                                        <div class="creativity-display">
-                                            <span>Conservative (1)</span>
-                                            <span id="creativity-value">7</span>
-                                            <span>Very Creative (10)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            <h2>🎼 Generate Arabic Music</h2>
+            <p>Create new Arabic music using AI trained on your song collection.</p>
+            
+            <form id="generation-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="gen-title">Song Title *</label>
+                        <input type="text" id="gen-title" name="title" required placeholder="Enter title for generated song">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gen-artist">Artist Name</label>
+                        <input type="text" id="gen-artist" name="artist" placeholder="AI Generated" value="AI Generated">
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="gen-lyrics">Arabic Lyrics/Poem *</label>
+                        <textarea id="gen-lyrics" name="lyrics" required placeholder="Enter the Arabic lyrics or poem that will guide the melody generation"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gen-maqam">Maqam *</label>
+                        <select id="gen-maqam" name="maqam" required>
+                            <option value="">Select Maqam</option>
+                            <option value="Hijaz">Hijaz</option>
+                            <option value="Bayati">Bayati</option>
+                            <option value="Saba">Saba</option>
+                            <option value="Rast">Rast</option>
+                            <option value="Kurd">Kurd</option>
+                            <option value="Nahawand">Nahawand</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gen-style">Musical Style *</label>
+                        <select id="gen-style" name="style" required>
+                            <option value="">Select Style</option>
+                            <option value="Traditional">Traditional</option>
+                            <option value="Modern">Modern</option>
+                            <option value="Folk">Folk</option>
+                            <option value="Classical">Classical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gen-tempo">Tempo (BPM) *</label>
+                        <div class="tempo-container">
+                            <span>Slow (60)</span>
+                            <input type="range" id="gen-tempo" name="tempo" min="60" max="180" value="120" class="tempo-slider">
+                            <span>Fast (180)</span>
                         </div>
-                        
-                        <!-- Generation Actions -->
-                        <div class="generation-actions">
-                            <button type="submit" id="generate-btn" class="generate-btn">
-                                🎵 Generate Music
-                            </button>
-                            <button type="button" id="preview-params-btn" class="preview-btn" onclick="previewParameters()">
-                                👁️ Preview Parameters
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Generation Status -->
-                <div class="generation-section">
-                    <h3>Generation Status</h3>
-                    <div class="generation-status" id="generation-status">
-                        <div class="status-message">
-                            <span class="status-icon">⏸️</span>
-                            <span class="status-text">Ready to generate music</span>
-                        </div>
-                        <div class="generation-progress" id="generation-progress" style="display: none;">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="gen-progress-fill"></div>
-                            </div>
-                            <div class="progress-text">
-                                <span id="gen-progress-text">Analyzing lyrics...</span>
-                                <span id="gen-progress-percentage">0%</span>
-                            </div>
-                        </div>
+                        <div class="tempo-value" id="gen-tempo-value">120 BPM</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gen-emotion">Emotion *</label>
+                        <select id="gen-emotion" name="emotion" required>
+                            <option value="">Select Emotion</option>
+                            <option value="Happy">Happy</option>
+                            <option value="Sad">Sad</option>
+                            <option value="Romantic">Romantic</option>
+                            <option value="Melancholic">Melancholic</option>
+                            <option value="Energetic">Energetic</option>
+                            <option value="Peaceful">Peaceful</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gen-region">Regional Style *</label>
+                        <select id="gen-region" name="region" required>
+                            <option value="">Select Region</option>
+                            <option value="Egyptian">Egyptian</option>
+                            <option value="Lebanese">Lebanese</option>
+                            <option value="Syrian">Syrian</option>
+                            <option value="Iraqi">Iraqi</option>
+                            <option value="Moroccan">Moroccan</option>
+                            <option value="Gulf">Gulf</option>
+                            <option value="Sudan">Sudan</option>
+                        </select>
                     </div>
                 </div>
                 
-                <!-- Generated Songs -->
-                <div class="generation-section">
-                    <h3>Generated Songs</h3>
-                    <div class="generated-songs" id="generated-songs">
-                        <p>No songs generated yet. Fill in the parameters above and click "Generate Music" to create your first AI-generated Arabic song!</p>
-                    </div>
-                </div>
-                
-                <!-- Quick Examples -->
-                <div class="generation-section">
-                    <h3>Quick Examples</h3>
-                    <div class="example-buttons">
-                        <button class="example-btn" onclick="loadExample('romantic')">
-                            💕 Romantic Song
-                        </button>
-                        <button class="example-btn" onclick="loadExample('traditional')">
-                            🏛️ Traditional Song
-                        </button>
-                        <button class="example-btn" onclick="loadExample('modern')">
-                            🎤 Modern Song
-                        </button>
-                        <button class="example-btn" onclick="loadExample('folk')">
-                            🎭 Folk Song
-                        </button>
-                    </div>
+                <button type="submit" class="upload-btn" id="generate-btn">🎵 Generate Music</button>
+            </form>
+            
+            <div class="songs-list">
+                <h2>Generated Songs</h2>
+                <div id="generated-songs">
+                    <p>No songs generated yet. Fill in the parameters above and click "Generate Music" to create your first AI-generated Arabic song!</p>
                 </div>
             </div>
         </div>
+    </div>
 
+    <script>
+        // Global variables
+        let selectedAudioFile = null;
+        let generationInProgress = false;
+
+        // Initialize application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Arabic Music AI - Starting initialization...');
+            
+            // Initialize tabs
+            initializeTabs();
+            
+            // Initialize file upload
+            setupFileUpload();
+            
+            // Initialize forms
+            initializeForms();
+            
+            // Load initial data
+            loadDashboardData();
+            loadLibrarySongs();
+            
+            console.log('Arabic Music AI - Initialization complete');
+        });
+
+        // Initialize tabs
+        function initializeTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.getAttribute('data-tab');
+                    console.log('Switching to tab:', targetTab);
+                    
+                    // Remove active class from all tabs and contents
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Add active class to clicked tab and corresponding content
+                    btn.classList.add('active');
+                    const targetContent = document.getElementById(targetTab);
+                    if (targetContent) {
+                        targetContent.classList.add('active');
+                    }
+                    
+                    // Load data for specific tabs
+                    if (targetTab === 'dashboard') {
+                        loadDashboardData();
+                    } else if (targetTab === 'library') {
+                        loadLibrarySongs();
+                    } else if (targetTab === 'upload') {
+                        setTimeout(setupFileUpload, 100);
+                    } else if (targetTab === 'generate') {
+                        setTimeout(loadGeneratedSongs, 100);
+                    }
+                });
+            });
+            
+            console.log('Tabs initialized');
+        }
+
+        // Initialize forms
+        function initializeForms() {
+            // Upload form
+            const uploadForm = document.getElementById('upload-form');
+            if (uploadForm) {
+                uploadForm.addEventListener('submit', handleUpload);
+                console.log('Upload form initialized');
+            }
+            
+            // Generation form
+            const generationForm = document.getElementById('generation-form');
+            if (generationForm) {
+                generationForm.addEventListener('submit', handleGeneration);
+                console.log('Generation form initialized');
+            }
+            
+            // Tempo sliders
+            const tempoSlider = document.getElementById('tempo');
+            const tempoValue = document.getElementById('tempo-value');
+            if (tempoSlider && tempoValue) {
+                tempoSlider.addEventListener('input', function() {
+                    tempoValue.textContent = this.value + ' BPM';
+                });
+            }
+            
+            const genTempoSlider = document.getElementById('gen-tempo');
+            const genTempoValue = document.getElementById('gen-tempo-value');
+            if (genTempoSlider && genTempoValue) {
+                genTempoSlider.addEventListener('input', function() {
+                    genTempoValue.textContent = this.value + ' BPM';
+                });
+            }
+        }
+
+        // File upload functionality
+        function setupFileUpload() {
+            const fileInput = document.getElementById('audio-file');
+            const uploadArea = document.getElementById('file-upload-area');
+            const browseBtn = document.getElementById('browse-btn');
+            const removeBtn = document.getElementById('remove-file');
+            
+            if (!fileInput || !uploadArea || !browseBtn) {
+                console.log('File upload elements not found');
+                return;
+            }
+            
+            // Browse button click
+            browseBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // File input change
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+            
+            // Remove file button
+            if (removeBtn) {
+                removeBtn.addEventListener('click', removeSelectedFile);
+            }
+            
+            // Drag and drop
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('drag-over');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-over');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-over');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            });
+            
+            // Click to browse
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            console.log('File upload setup complete');
+        }
+
+        function handleFileSelect(file) {
+            console.log('File selected:', file.name);
+            
+            const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/flac', 'audio/m4a', 'audio/mpeg'];
+            
+            if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|flac|m4a)$/i)) {
+                alert('Please select a valid audio file (MP3, WAV, FLAC, or M4A)');
+                return;
+            }
+            
+            selectedAudioFile = file;
+            
+            // Update UI
+            const fileSelected = document.getElementById('file-selected');
+            const fileName = document.getElementById('file-name');
+            const fileSize = document.getElementById('file-size');
+            const uploadArea = document.getElementById('file-upload-area');
+            
+            if (fileSelected && fileName && fileSize && uploadArea) {
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileSelected.style.display = 'block';
+                uploadArea.style.display = 'none';
+                
+                console.log('File UI updated successfully');
+            }
+        }
+
+        function removeSelectedFile() {
+            console.log('Removing selected file');
+            selectedAudioFile = null;
+            
+            const fileSelected = document.getElementById('file-selected');
+            const uploadArea = document.getElementById('file-upload-area');
+            const fileInput = document.getElementById('audio-file');
+            
+            if (fileSelected) fileSelected.style.display = 'none';
+            if (uploadArea) uploadArea.style.display = 'block';
+            if (fileInput) fileInput.value = '';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Upload functionality
+        async function handleUpload(event) {
+            event.preventDefault();
+            console.log('Upload form submitted');
+            
+            if (!selectedAudioFile) {
+                alert('Please select an audio file first');
+                return;
+            }
+            
+            const formData = new FormData(event.target);
+            formData.append('audio_file', selectedAudioFile);
+            
+            const uploadBtn = document.getElementById('upload-btn');
+            const originalText = uploadBtn.textContent;
+            uploadBtn.textContent = 'Uploading...';
+            uploadBtn.disabled = true;
+            
+            try {
+                console.log('Sending upload request...');
+                const response = await fetch('/api/songs/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                console.log('Upload response:', result);
+                
+                if (result.success) {
+                    alert('Song uploaded successfully to library!');
+                    event.target.reset();
+                    removeSelectedFile();
+                    loadDashboardData();
+                    loadLibrarySongs();
+                } else {
+                    alert('Upload failed: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Upload failed. Please try again.');
+            } finally {
+                uploadBtn.textContent = originalText;
+                uploadBtn.disabled = false;
+            }
+        }
+
+        // Generation functionality
+        async function handleGeneration(event) {
+            event.preventDefault();
+            console.log('Generation form submitted');
+            
+            if (generationInProgress) {
+                alert('Generation already in progress. Please wait...');
+                return;
+            }
+            
+            const formData = new FormData(event.target);
+            const params = {};
+            for (let [key, value] of formData.entries()) {
+                params[key] = value;
+            }
+            
+            // Check required fields
+            const requiredFields = ['title', 'lyrics', 'maqam', 'style', 'tempo', 'emotion', 'region'];
+            const missingFields = requiredFields.filter(field => !params[field] || params[field].trim() === '');
+            
+            if (missingFields.length > 0) {
+                alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
+                return;
+            }
+            
+            generationInProgress = true;
+            const generateBtn = document.getElementById('generate-btn');
+            generateBtn.textContent = '🔄 Generating...';
+            generateBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/generation/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(params)
+                });
+                
+                const result = await response.json();
+                console.log('Generation response:', result);
+                
+                if (result.success) {
+                    alert(`🎵 Music generated successfully! "${params.title}" is ready.`);
+                    loadGeneratedSongs();
+                    loadDashboardData();
+                } else {
+                    alert('Generation failed: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Generation error:', error);
+                alert('Generation failed. Please try again.');
+            } finally {
+                generationInProgress = false;
+                generateBtn.textContent = '🎵 Generate Music';
+                generateBtn.disabled = false;
+            }
+        }
+
+        // Dashboard functionality
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateDashboardStats(data.stats);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        function updateDashboardStats(stats) {
+            const elements = {
+                'songs-count': stats.songs_count,
+                'generated-count': stats.generated_count,
+                'training-status': stats.is_training ? 'Training' : 'Ready',
+                'model-accuracy': stats.model_accuracy + '%'
+            };
+            
+            Object.keys(elements).forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = elements[id];
+                }
+            });
+        }
+
+        // Library functionality
+        async function loadLibrarySongs() {
+            try {
+                console.log('Loading library songs...');
+                const response = await fetch('/api/library/songs');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayLibrarySongs(data.songs);
+                    displayUploadedSongs(data.songs);
+                    console.log('Library songs loaded:', data.songs.length);
+                }
+            } catch (error) {
+                console.error('Error loading library songs:', error);
+            }
+        }
+
+        function displayLibrarySongs(songs) {
+            const container = document.getElementById('library-songs');
+            if (!container) return;
+            
+            if (songs.length === 0) {
+                container.innerHTML = '<p>No songs in library yet. Go to "Upload Songs" tab to build your collection!</p>';
+                return;
+            }
+            
+            container.innerHTML = songs.map(song => `
+                <div class="song-item">
+                    <div class="song-header">
+                        <div>
+                            <h3>${song.title}</h3>
+                            <p>by ${song.artist} • ${song.maqam} • ${song.region}</p>
+                            <small>Uploaded: ${new Date(song.upload_date).toLocaleDateString()}</small>
+                        </div>
+                        <div class="song-actions">
+                            <button class="edit-btn" onclick="editSong(${song.id})">✏️ Edit</button>
+                            <button class="delete-btn" onclick="deleteSong(${song.id})">🗑️ Delete</button>
+                        </div>
+                    </div>
+                    <div>
+                        <p><strong>Style:</strong> ${song.style} | <strong>Tempo:</strong> ${song.tempo} BPM | <strong>Emotion:</strong> ${song.emotion}</p>
+                        <p><strong>Lyrics:</strong> ${song.lyrics.substring(0, 100)}${song.lyrics.length > 100 ? '...' : ''}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayUploadedSongs(songs) {
+            const container = document.getElementById('uploaded-songs');
+            if (!container) return;
+            
+            if (songs.length === 0) {
+                container.innerHTML = '<p>No songs uploaded yet. Upload your first song above!</p>';
+                return;
+            }
+            
+            container.innerHTML = songs.map(song => `
+                <div class="song-item">
+                    <div class="song-header">
+                        <div>
+                            <h3>${song.title}</h3>
+                            <p>by ${song.artist} • ${song.maqam} • ${song.region}</p>
+                        </div>
+                        <div class="song-actions">
+                            <button class="edit-btn" onclick="editSong(${song.id})">✏️ Edit</button>
+                            <button class="delete-btn" onclick="deleteSong(${song.id})">🗑️ Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadGeneratedSongs() {
+            try {
+                const response = await fetch('/api/generation/list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayGeneratedSongs(data.generated_songs);
+                }
+            } catch (error) {
+                console.error('Error loading generated songs:', error);
+            }
+        }
+
+        function displayGeneratedSongs(songs) {
+            const container = document.getElementById('generated-songs');
+            if (!container) return;
+            
+            if (songs.length === 0) {
+                container.innerHTML = '<p>No songs generated yet. Fill in the parameters above and click "Generate Music" to create your first AI-generated Arabic song!</p>';
+                return;
+            }
+            
+            container.innerHTML = songs.map(song => `
+                <div class="song-item">
+                    <div class="song-header">
+                        <div>
+                            <h3>${song.title}</h3>
+                            <p>Generated on ${new Date(song.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div class="song-actions">
+                            <button class="edit-btn" onclick="playSong(${song.id})">▶️ Play</button>
+                            <button class="delete-btn" onclick="downloadSong(${song.id})">⬇️ Download</button>
+                        </div>
+                    </div>
+                    <div>
+                        <p><strong>Maqam:</strong> ${song.maqam} | <strong>Style:</strong> ${song.style} | <strong>Emotion:</strong> ${song.emotion}</p>
+                        <p><strong>Lyrics:</strong> ${song.lyrics.substring(0, 100)}${song.lyrics.length > 100 ? '...' : ''}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Global functions for song management
+        window.editSong = function(songId) {
+            alert(`Edit functionality for song ${songId} will be implemented in the next update!`);
+        };
+
+        window.deleteSong = async function(songId) {
+            if (confirm('Are you sure you want to remove this song from the library?')) {
+                try {
+                    const response = await fetch(`/api/songs/${songId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('Song removed from library successfully!');
+                        loadLibrarySongs();
+                        loadDashboardData();
+                    } else {
+                        alert('Delete failed: ' + result.error);
+                    }
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    alert('Delete failed. Please try again.');
+                }
+            }
+        };
+
+        window.playSong = function(songId) {
+            alert(`🎵 Playing song ${songId}... (Audio playback will be implemented with actual generation)`);
+        };
+
+        window.downloadSong = function(songId) {
+            alert(`⬇️ Downloading song ${songId}... (Download will be implemented with actual generation)`);
+        };
+    </script>
+</body>
+</html>
