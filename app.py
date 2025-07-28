@@ -54,22 +54,33 @@ class Song(db.Model):
     __tablename__ = 'songs'
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    artist = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.String(200), nullable=False, index=True)
+    artist = db.Column(db.String(200), nullable=False, index=True)
     lyrics = db.Column(db.Text, nullable=False)
-    audio_filename = db.Column(db.String(500), nullable=False)
-    audio_data = db.Column(db.LargeBinary, nullable=False)
-    maqam = db.Column(db.String(50), nullable=False)
-    style = db.Column(db.String(50), nullable=False)
+    maqam = db.Column(db.String(50), nullable=False, index=True)
+    style = db.Column(db.String(50), nullable=False, index=True)
     tempo = db.Column(db.Integer, nullable=False)
-    emotion = db.Column(db.String(50), nullable=False)
-    region = db.Column(db.String(50), nullable=False)
+    emotion = db.Column(db.String(50), nullable=False, index=True)
+    region = db.Column(db.String(50), nullable=False, index=True)
     composer = db.Column(db.String(200))
     poem_bahr = db.Column(db.String(50))
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Enhanced file storage
+    filename = db.Column(db.String(255))
     file_size = db.Column(db.Integer)
-    is_active = db.Column(db.Boolean, default=True)
-
+    file_type = db.Column(db.String(10))
+    audio_data = db.Column(db.LargeBinary)
+    
+    # Metadata and tracking
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    upload_ip = db.Column(db.String(45))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Backup and versioning
+    version = db.Column(db.Integer, default=1)
+    backup_data = db.Column(db.Text)
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -83,10 +94,14 @@ class Song(db.Model):
             'region': self.region,
             'composer': self.composer,
             'poem_bahr': self.poem_bahr,
-            'upload_date': self.upload_date.isoformat() if self.upload_date else None,
+            'filename': self.filename,
             'file_size': self.file_size,
-            'audio_filename': self.audio_filename
+            'file_type': self.file_type,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'version': self.version
         }
+
 
 class TrainingSession(db.Model):
     __tablename__ = 'training_sessions'
