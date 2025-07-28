@@ -1230,6 +1230,105 @@
         window.downloadSong = function(songId) {
             alert(`⬇️ Downloading song ${songId}... (Download will be implemented with actual generation)`);
         };
+           // Song editing functions
+        window.editSong = async function(songId) {
+            try {
+                console.log('Loading song for editing:', songId);
+                const response = await fetch(`/api/songs/${songId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    populateEditForm(data.song);
+                    document.getElementById('edit-modal').style.display = 'block';
+                } else {
+                    alert('Failed to load song data: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error loading song:', error);
+                alert('Failed to load song data. Please try again.');
+            }
+        };
+
+        function populateEditForm(song) {
+            document.getElementById('edit-song-id').value = song.id;
+            document.getElementById('edit-title').value = song.title || '';
+            document.getElementById('edit-artist').value = song.artist || '';
+            document.getElementById('edit-lyrics').value = song.lyrics || '';
+            document.getElementById('edit-maqam').value = song.maqam || '';
+            document.getElementById('edit-style').value = song.style || '';
+            document.getElementById('edit-tempo').value = song.tempo || 120;
+            document.getElementById('edit-emotion').value = song.emotion || '';
+            document.getElementById('edit-region').value = song.region || '';
+            document.getElementById('edit-composer').value = song.composer || '';
+            document.getElementById('edit-poem-bahr').value = song.poem_bahr || '';
+            
+            // Update tempo display
+            document.getElementById('edit-tempo-value').textContent = (song.tempo || 120) + ' BPM';
+            
+            // Add tempo slider listener
+            const editTempoSlider = document.getElementById('edit-tempo');
+            const editTempoValue = document.getElementById('edit-tempo-value');
+            editTempoSlider.addEventListener('input', function() {
+                editTempoValue.textContent = this.value + ' BPM';
+            });
+        }
+
+        window.closeEditModal = function() {
+            document.getElementById('edit-modal').style.display = 'none';
+        };
+
+        // Edit form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            const editForm = document.getElementById('edit-form');
+            if (editForm) {
+                editForm.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+                    
+                    const formData = new FormData(event.target);
+                    const songId = formData.get('song_id');
+                    
+                    const updateData = {};
+                    for (let [key, value] of formData.entries()) {
+                        if (key !== 'song_id') {
+                            updateData[key] = value;
+                        }
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/songs/${songId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(updateData)
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            alert('Song updated successfully!');
+                            closeEditModal();
+                            loadLibrarySongs();
+                            loadDashboardData();
+                        } else {
+                            alert('Update failed: ' + result.error);
+                        }
+                    } catch (error) {
+                        console.error('Update error:', error);
+                        alert('Update failed. Please try again.');
+                    }
+                });
+            }
+        });
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('edit-modal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        };
+
     </script>
         <!-- Song Edit Modal -->
     <div id="edit-modal" class="modal" style="display: none;">
