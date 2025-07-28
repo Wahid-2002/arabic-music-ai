@@ -17,18 +17,8 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# Use environment variable for database URL (Render provides this)
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    # Render PostgreSQL
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-else:
-    # Local SQLite with persistent path
-    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'persistent_songs.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-
+# Simple SQLite database - no parsing issues
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
@@ -41,7 +31,7 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Database Models with better persistence
+# Database Models
 class Song(db.Model):
     __tablename__ = 'songs'
     
@@ -50,7 +40,7 @@ class Song(db.Model):
     artist = db.Column(db.String(200), nullable=False)
     lyrics = db.Column(db.Text, nullable=False)
     audio_filename = db.Column(db.String(500), nullable=False)
-    audio_data = db.Column(db.LargeBinary, nullable=False)  # Store as binary
+    audio_data = db.Column(db.LargeBinary, nullable=False)
     maqam = db.Column(db.String(50), nullable=False)
     style = db.Column(db.String(50), nullable=False)
     tempo = db.Column(db.Integer, nullable=False)
@@ -60,7 +50,7 @@ class Song(db.Model):
     poem_bahr = db.Column(db.String(50))
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     file_size = db.Column(db.Integer)
-    is_active = db.Column(db.Boolean, default=True)  # Soft delete
+    is_active = db.Column(db.Boolean, default=True)
 
     def to_dict(self):
         return {
@@ -80,7 +70,6 @@ class Song(db.Model):
             'audio_filename': self.audio_filename
         }
 
-# Training Session Model
 class TrainingSession(db.Model):
     __tablename__ = 'training_sessions'
     
@@ -106,7 +95,6 @@ class TrainingSession(db.Model):
             'end_time': self.end_time.isoformat() if self.end_time else None
         }
 
-# Generated Song Model
 class GeneratedSong(db.Model):
     __tablename__ = 'generated_songs'
     
@@ -124,7 +112,7 @@ class GeneratedSong(db.Model):
     duration = db.Column(db.String(20))
     instruments = db.Column(db.String(50))
     creativity = db.Column(db.Integer)
-    audio_data = db.Column(db.LargeBinary)  # Store as binary
+    audio_data = db.Column(db.LargeBinary)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     generation_params = db.Column(db.Text)
 
@@ -169,7 +157,6 @@ def dashboard_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Song Library endpoints
 @app.route('/api/library/songs')
 def get_library_songs():
     try:
@@ -183,13 +170,11 @@ def get_library_songs():
 
 @app.route('/api/songs/list')
 def get_songs():
-    # Redirect to library endpoint
     return get_library_songs()
 
 @app.route('/api/songs/upload', methods=['POST'])
 def upload_song():
     try:
-        # Check if file is present
         if 'audio_file' not in request.files:
             return jsonify({'success': False, 'error': 'No audio file provided'}), 400
         
@@ -219,17 +204,17 @@ def upload_song():
         if not (60 <= tempo <= 180):
             return jsonify({'success': False, 'error': 'Tempo must be between 60 and 180 BPM'}), 400
         
-        # Read file content as binary
+        # Read file content
         file_content = file.read()
         file_size = len(file_content)
         
-        # Create database entry with binary data
+        # Create database entry
         song = Song(
             title=title,
             artist=artist,
             lyrics=lyrics,
             audio_filename=secure_filename(file.filename),
-            audio_data=file_content,  # Store as binary
+            audio_data=file_content,
             maqam=maqam,
             style=style,
             tempo=tempo,
@@ -258,7 +243,6 @@ def update_song(song_id):
     try:
         song = Song.query.filter_by(id=song_id, is_active=True).first_or_404()
         
-        # Update fields
         song.title = request.json.get('title', song.title)
         song.artist = request.json.get('artist', song.artist)
         song.lyrics = request.json.get('lyrics', song.lyrics)
@@ -287,7 +271,6 @@ def delete_song(song_id):
         song = Song.query.filter_by(id=song_id, is_active=True).first_or_404()
         song_title = song.title
         
-        # Soft delete
         song.is_active = False
         db.session.commit()
         
@@ -299,7 +282,6 @@ def delete_song(song_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Serve audio files from database
 @app.route('/api/songs/<int:song_id>/audio')
 def get_song_audio(song_id):
     try:
@@ -336,13 +318,6 @@ def start_training():
                 'error': f'Need at least 3 songs to start training. Currently have {songs_count} songs in library.'
             }), 400
         
-        songs_with_lyrics = Song.query.filter(Song.lyrics != '', Song.lyrics.isnot(None), Song.is_active == True).count()
-        if songs_with_lyrics < songs_count:
-            return jsonify({
-                'success': False, 
-                'error': 'All songs in library must have lyrics to start training.'
-            }), 400
-        
         session_id = str(uuid.uuid4())
         training_session = TrainingSession(
             session_id=session_id,
@@ -360,37 +335,6 @@ def start_training():
             'success': True,
             'message': f'Training started with {songs_count} songs from library!',
             'session_id': session_id
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/training/stop', methods=['POST'])
-def stop_training():
-    try:
-        active_training = TrainingSession.query.filter_by(status='training').first()
-        if active_training:
-            active_training.status = 'stopped'
-            active_training.end_time = datetime.utcnow()
-            db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Training stopped successfully!'
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/training/reset', methods=['POST'])
-def reset_training():
-    try:
-        TrainingSession.query.update({'status': 'reset'})
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Model reset successfully!'
         })
         
     except Exception as e:
@@ -441,18 +385,6 @@ def get_training_status():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/training/history')
-def get_training_history():
-    try:
-        sessions = TrainingSession.query.order_by(TrainingSession.start_time.desc()).limit(10).all()
-        return jsonify({
-            'success': True,
-            'history': [session.to_dict() for session in sessions]
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 # Generation endpoints
 @app.route('/api/generation/generate', methods=['POST'])
 def generate_music():
@@ -479,10 +411,8 @@ def generate_music():
         if songs_count < 3:
             return jsonify({
                 'success': False,
-                'error': f'Need at least 3 songs in library to generate music. Currently have {songs_count} songs. Please upload more songs to the library first.'
+                'error': f'Need at least 3 songs in library to generate music. Currently have {songs_count} songs.'
             }), 400
-        
-        generation_id = str(uuid.uuid4())
         
         generated_song = GeneratedSong(
             title=params.get('title'),
@@ -499,7 +429,7 @@ def generate_music():
             instruments=params.get('instruments', 'modern'),
             creativity=int(params.get('creativity', 7)),
             generation_params=json.dumps(params),
-            audio_data=b'demo_audio_placeholder'  # Binary placeholder
+            audio_data=b'demo_placeholder'
         )
         
         db.session.add(generated_song)
@@ -507,8 +437,7 @@ def generate_music():
         
         return jsonify({
             'success': True,
-            'message': f'Music generation completed! "{params.get("title")}" has been generated using {songs_count} songs from your library.',
-            'generation_id': generation_id,
+            'message': f'Music generation completed! "{params.get("title")}" has been generated.',
             'song_id': generated_song.id
         })
         
@@ -523,44 +452,6 @@ def get_generated_songs():
             'success': True,
             'generated_songs': [song.to_dict() for song in songs]
         })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/generation/<int:song_id>/audio')
-def get_generated_audio(song_id):
-    try:
-        song = GeneratedSong.query.get_or_404(song_id)
-        
-        if not song.audio_data or song.audio_data == b'demo_audio_placeholder':
-            return jsonify({
-                'success': False,
-                'error': 'This is a demo version. Audio generation will be implemented with the full AI model.',
-                'info': 'The generation parameters have been saved and the system is ready for real audio generation.'
-            }), 404
-        
-        return jsonify({
-            'success': True,
-            'message': 'Audio would be streamed here in the full implementation'
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/generation/<int:song_id>', methods=['DELETE'])
-def delete_generated_song(song_id):
-    try:
-        song = GeneratedSong.query.get_or_404(song_id)
-        song_title = song.title
-        
-        db.session.delete(song)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Generated song "{song_title}" deleted successfully!'
-        })
-        
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -568,12 +459,10 @@ def delete_generated_song(song_id):
 def health_check():
     try:
         songs_count = Song.query.filter_by(is_active=True).count()
-        generated_count = GeneratedSong.query.count()
         return jsonify({
             'status': 'healthy',
             'library_songs': songs_count,
-            'generated_songs': generated_count,
-            'message': 'Arabic Music AI is running with persistent song library'
+            'message': 'Arabic Music AI is running'
         })
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
@@ -594,23 +483,19 @@ def serve(path):
             <body>
                 <h1>🎵 Arabic Music AI Generator</h1>
                 <p>Your application is successfully deployed!</p>
-                <p>Persistent song library and generation ready!</p>
+                <p>Song library and generation ready!</p>
             </body>
             </html>
             '''
 
-# Create database tables with error handling
+# Create database tables
 with app.app_context():
     try:
-        # Create all tables
         db.create_all()
-        
-        # Check if we have existing songs
         songs_count = Song.query.filter_by(is_active=True).count()
-        print(f"Database initialized successfully. Songs in library: {songs_count}")
-        
+        print(f"Database initialized. Songs in library: {songs_count}")
     except Exception as e:
-        print(f"Database initialization error: {e}")
+        print(f"Database error: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
