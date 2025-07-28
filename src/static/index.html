@@ -54,6 +54,69 @@
                 </div>
             </div>
         </div>
+        <!-- Song Library Tab -->
+        <div id="library" class="tab-content">
+            <div class="library-container">
+                <h2>📚 Song Library</h2>
+                <p class="library-description">Your permanent collection of Arabic songs for AI training. Songs uploaded here are saved forever and won't be lost during system updates.</p>
+                
+                <!-- Library Stats -->
+                <div class="library-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="library-total-songs">0</div>
+                        <div class="stat-label">Total Songs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="library-total-size">0 MB</div>
+                        <div class="stat-label">Total Size</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="library-maqams">0</div>
+                        <div class="stat-label">Different Maqams</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="library-regions">0</div>
+                        <div class="stat-label">Regions</div>
+                    </div>
+                </div>
+                
+                <!-- Library Controls -->
+                <div class="library-controls">
+                    <div class="search-filter-section">
+                        <input type="text" id="library-search" placeholder="Search songs in library..." class="search-input">
+                        <select id="library-filter-maqam" class="filter-select">
+                            <option value="">All Maqams</option>
+                            <option value="Hijaz">Hijaz</option>
+                            <option value="Bayati">Bayati</option>
+                            <option value="Saba">Saba</option>
+                            <option value="Rast">Rast</option>
+                            <option value="Kurd">Kurd</option>
+                            <option value="Nahawand">Nahawand</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                        <select id="library-filter-region" class="filter-select">
+                            <option value="">All Regions</option>
+                            <option value="Egyptian">Egyptian</option>
+                            <option value="Lebanese">Lebanese</option>
+                            <option value="Syrian">Syrian</option>
+                            <option value="Iraqi">Iraqi</option>
+                            <option value="Moroccan">Moroccan</option>
+                            <option value="Gulf">Gulf</option>
+                            <option value="Sudan">Sudan</option>
+                        </select>
+                    </div>
+                    <div class="library-actions">
+                        <button class="action-btn" onclick="refreshLibrary()">🔄 Refresh</button>
+                        <button class="action-btn" onclick="exportLibrary()">📤 Export List</button>
+                    </div>
+                </div>
+                
+                <!-- Library Songs List -->
+                <div class="library-songs" id="library-songs">
+                    <p>Loading song library...</p>
+                </div>
+            </div>
+        </div>
 
                <!-- Upload Tab -->
         <div id="upload" class="tab-content">
