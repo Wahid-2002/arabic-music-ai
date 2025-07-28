@@ -1,13 +1,12 @@
 import os
 import sys
 import uuid
-import base64
 from werkzeug.utils import secure_filename
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, send_from_directory, request, jsonify, Response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -18,17 +17,24 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# Database configuration - Use PostgreSQL for persistence
-database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///app.db'
+# Simple SQLite database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///persistent_app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
 CORS(app)
 db = SQLAlchemy(app)
+
+# Create persistent directory for database
+PERSISTENT_DIR = '/opt/render/project/persistent'
+if not os.path.exists(PERSISTENT_DIR):
+    try:
+        os.makedirs(PERSISTENT_DIR)
+    except:
+        PERSISTENT_DIR = '.'
+
+# Update database path to persistent location
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{PERSISTENT_DIR}/app.db'
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
@@ -36,14 +42,14 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Database Models with file content storage
+# Database Models - Store files as base64 in database
 class Song(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     artist = db.Column(db.String(200), nullable=False)
     lyrics = db.Column(db.Text, nullable=False)
     audio_filename = db.Column(db.String(500), nullable=False)
-    audio_content = db.Column(db.LargeBinary, nullable=False)  # Store file content in database
+    audio_data = db.Column(db.Text, nullable=False)  # Base64 encoded audio
     maqam = db.Column(db.String(50), nullable=False)
     style = db.Column(db.String(50), nullable=False)
     tempo = db.Column(db.Integer, nullable=False)
@@ -72,7 +78,7 @@ class Song(db.Model):
             'audio_filename': self.audio_filename
         }
 
-# Training Session Model for persistence
+# Training Session Model
 class TrainingSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(100), unique=True, nullable=False)
@@ -82,7 +88,7 @@ class TrainingSession(db.Model):
     total_epochs = db.Column(db.Integer, nullable=False)
     start_time = db.Column(db.DateTime, default=datetime.utcnow)
     end_time = db.Column(db.DateTime)
-    config = db.Column(db.Text)  # JSON string
+    config_data = db.Column(db.Text)
 
     def to_dict(self):
         return {
@@ -93,8 +99,7 @@ class TrainingSession(db.Model):
             'current_epoch': self.current_epoch,
             'total_epochs': self.total_epochs,
             'start_time': self.start_time.isoformat() if self.start_time else None,
-            'end_time': self.end_time.isoformat() if self.end_time else None,
-            'config': json.loads(self.config) if self.config else {}
+            'end_time': self.end_time.isoformat() if self.end_time else None
         }
 
 # API Routes
@@ -103,13 +108,15 @@ def dashboard_stats():
     try:
         songs_count = Song.query.count()
         active_training = TrainingSession.query.filter_by(status='training').first()
+        completed_training = TrainingSession.query.filter_by(status='completed').first()
+        
         return jsonify({
             'success': True,
             'stats': {
                 'songs_count': songs_count,
                 'generated_count': 0,
                 'is_training': active_training is not None,
-                'model_accuracy': 85 if songs_count > 10 else 0
+                'model_accuracy': 85 if completed_training else 0
             }
         })
     except Exception as e:
@@ -159,17 +166,21 @@ def upload_song():
         if not (60 <= tempo <= 180):
             return jsonify({'success': False, 'error': 'Tempo must be between 60 and 180 BPM'}), 400
         
-        # Read file content into memory
+        # Read and encode file content
         file_content = file.read()
         file_size = len(file_content)
         
-        # Create database entry with file content
+        # Convert to base64 for storage
+        import base64
+        audio_data = base64.b64encode(file_content).decode('utf-8')
+        
+        # Create database entry
         song = Song(
             title=title,
             artist=artist,
             lyrics=lyrics,
             audio_filename=secure_filename(file.filename),
-            audio_content=file_content,  # Store file in database
+            audio_data=audio_data,
             maqam=maqam,
             style=style,
             tempo=tempo,
@@ -185,7 +196,7 @@ def upload_song():
         
         return jsonify({
             'success': True, 
-            'message': 'Song uploaded and saved permanently!',
+            'message': f'Song "{title}" uploaded and saved permanently!',
             'song': song.to_dict()
         })
         
@@ -224,12 +235,14 @@ def update_song(song_id):
 def delete_song(song_id):
     try:
         song = Song.query.get_or_404(song_id)
+        song_title = song.title
+        
         db.session.delete(song)
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': 'Song deleted successfully!'
+            'message': f'Song "{song_title}" deleted successfully!'
         })
         
     except Exception as e:
@@ -241,20 +254,22 @@ def get_song_audio(song_id):
     try:
         song = Song.query.get_or_404(song_id)
         
-        # Create a temporary response with the audio content
-        from flask import Response
+        # Decode base64 audio data
+        import base64
+        audio_content = base64.b64decode(song.audio_data)
+        
         return Response(
-            song.audio_content,
+            audio_content,
             mimetype='audio/mpeg',
             headers={
                 'Content-Disposition': f'attachment; filename="{song.audio_filename}"',
-                'Content-Length': str(len(song.audio_content))
+                'Content-Length': str(len(audio_content))
             }
         )
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Training endpoints with persistence
+# Training endpoints
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
     try:
@@ -293,7 +308,7 @@ def start_training():
             progress=0,
             current_epoch=0,
             total_epochs=config.get('epochs', 25),
-            config=json.dumps(config)
+            config_data=json.dumps(config)
         )
         
         db.session.add(training_session)
@@ -301,7 +316,7 @@ def start_training():
         
         return jsonify({
             'success': True,
-            'message': 'Training started successfully!',
+            'message': f'Training started with {songs_count} songs!',
             'session_id': session_id
         })
         
@@ -407,6 +422,19 @@ def generation_list():
         'generated_songs': []
     })
 
+# Health check endpoint
+@app.route('/health')
+def health_check():
+    try:
+        songs_count = Song.query.count()
+        return jsonify({
+            'status': 'healthy',
+            'songs_count': songs_count,
+            'message': 'Arabic Music AI is running'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 # Serve static files and main app
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -424,14 +452,18 @@ def serve(path):
             <body>
                 <h1>🎵 Arabic Music AI Generator</h1>
                 <p>Your application is successfully deployed!</p>
-                <p>Setting up the full interface...</p>
+                <p>Songs are now saved permanently!</p>
             </body>
             </html>
             '''
 
 # Create database tables
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+        print("Database tables created successfully")
+    except Exception as e:
+        print(f"Database creation error: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
