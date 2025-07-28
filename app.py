@@ -17,26 +17,9 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# Enhanced database configuration with multiple fallbacks
-database_url = os.environ.get('DATABASE_URL')
-
-if database_url:
-    # Production: Use Render's PostgreSQL
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print("Using PostgreSQL database for production")
-else:
-    # Development/Fallback: Use SQLite with persistent location
-    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'arabic_music_ai.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-    print(f"Using SQLite database at: {db_path}")
-
+# Simple, reliable database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai_persistent.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-}
 
 
 # Initialize extensions
