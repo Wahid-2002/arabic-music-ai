@@ -18,8 +18,20 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# Use EXISTING database path to preserve your data
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'src', 'database', 'app.db')}"
+# Smart database configuration - works locally and on Render
+if os.environ.get('DATABASE_URL'):
+    # Use PostgreSQL on Render if DATABASE_URL is provided
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+else:
+    # Use local SQLite database (preserves your existing data)
+    local_db_path = os.path.join(os.path.dirname(__file__), 'src', 'database', 'app.db')
+    if os.path.exists(local_db_path):
+        # Use existing database with your songs
+        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{local_db_path}"
+    else:
+        # Create new database in current directory
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
@@ -32,15 +44,14 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Use EXISTING Song model structure (matches your database)
+# Flexible Song model that works with both old and new database structures
 class Song(db.Model):
-    __tablename__ = 'song'  # Use existing table name
+    __tablename__ = 'song'
     
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     artist = db.Column(db.String(200), nullable=False)
     lyrics = db.Column(db.Text, nullable=False)
-    audio_file_path = db.Column(db.String(500), nullable=False)  # Existing field
     maqam = db.Column(db.String(50), nullable=False)
     style = db.Column(db.String(50), nullable=False)
     tempo = db.Column(db.Integer, nullable=False)
@@ -48,12 +59,21 @@ class Song(db.Model):
     region = db.Column(db.String(50), nullable=False)
     composer = db.Column(db.String(200))
     poem_bahr = db.Column(db.String(50))
-    upload_date = db.Column(db.DateTime)  # Existing field
-    processed = db.Column(db.Boolean)  # Existing field
-    duration = db.Column(db.Float)  # Existing field
-    file_size = db.Column(db.Integer)  # Existing field
-    audio_features = db.Column(db.Text)  # Existing field
-    lyrics_features = db.Column(db.Text)  # Existing field
+    
+    # Optional fields for compatibility
+    audio_file_path = db.Column(db.String(500))
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
+    processed = db.Column(db.Boolean, default=False)
+    duration = db.Column(db.Float)
+    file_size = db.Column(db.Integer)
+    audio_features = db.Column(db.Text)
+    lyrics_features = db.Column(db.Text)
+    
+    # New fields for better functionality
+    filename = db.Column(db.String(255))
+    file_type = db.Column(db.String(10))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
         return {
@@ -68,17 +88,16 @@ class Song(db.Model):
             'region': self.region,
             'composer': self.composer,
             'poem_bahr': self.poem_bahr,
-            'audio_file_path': self.audio_file_path,
-            'upload_date': self.upload_date.isoformat() if self.upload_date else None,
-            'processed': self.processed,
-            'duration': self.duration,
+            'filename': self.filename or f"{self.title}.mp3",
             'file_size': self.file_size,
-            'file_size_mb': round(self.file_size / (1024*1024), 2) if self.file_size else 0
+            'file_size_mb': round(self.file_size / (1024*1024), 2) if self.file_size else 0,
+            'upload_date': (self.upload_date or self.created_at).isoformat() if (self.upload_date or self.created_at) else None,
+            'processed': self.processed,
+            'duration': self.duration
         }
 
-# New models for additional functionality (will be created if they don't exist)
 class TrainingSession(db.Model):
-    __tablename__ = 'training_session_new'  # Different name to avoid conflicts
+    __tablename__ = 'training_sessions'
     
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), unique=True, nullable=False)
@@ -93,7 +112,7 @@ class TrainingSession(db.Model):
     completed_at = db.Column(db.DateTime)
 
 class GeneratedSong(db.Model):
-    __tablename__ = 'generated_song_new'  # Different name to avoid conflicts
+    __tablename__ = 'generated_songs'
     
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -133,9 +152,13 @@ class GeneratedSong(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
-# Create new tables only (existing tables will be preserved)
+# Create tables safely
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+        print("Database tables created successfully!")
+    except Exception as e:
+        print(f"Database creation error: {e}")
 
 # Dashboard endpoints
 @app.route('/api/dashboard/stats')
@@ -176,7 +199,7 @@ def dashboard_stats():
 @app.route('/api/songs/list')
 def list_songs():
     try:
-        songs = Song.query.order_by(Song.upload_date.desc()).all()
+        songs = Song.query.order_by(Song.created_at.desc()).all()
         return jsonify({
             'success': True,
             'songs': [song.to_dict() for song in songs]
@@ -237,22 +260,16 @@ def upload_song():
         except ValueError:
             return jsonify({'success': False, 'error': 'Invalid tempo value'}), 400
         
-        # Save file
+        # Get file info (don't save file in production - just get metadata)
         filename = secure_filename(file.filename)
-        upload_folder = os.path.join(os.path.dirname(__file__), 'uploads')
-        os.makedirs(upload_folder, exist_ok=True)
-        file_path = os.path.join(upload_folder, filename)
-        file.save(file_path)
+        file_data = file.read()
+        file_size = len(file_data)
         
-        # Get file size
-        file_size = os.path.getsize(file_path)
-        
-        # Create song record using existing structure
+        # Create song record
         song = Song(
             title=title,
             artist=artist,
             lyrics=lyrics,
-            audio_file_path=file_path,  # Use existing field name
             maqam=maqam,
             style=style,
             tempo=tempo_int,
@@ -260,9 +277,14 @@ def upload_song():
             region=region,
             composer=composer if composer else None,
             poem_bahr=poem_bahr if poem_bahr else None,
-            upload_date=datetime.utcnow(),  # Use existing field name
-            processed=False,  # Use existing field
-            file_size=file_size  # Use existing field
+            filename=filename,
+            file_type=filename.rsplit('.', 1)[1].lower() if '.' in filename else 'mp3',
+            file_size=file_size,
+            audio_file_path=f"/uploads/{filename}",  # Virtual path for compatibility
+            upload_date=datetime.utcnow(),
+            processed=False,
+            is_active=True,
+            created_at=datetime.utcnow()
         )
         
         # Save to database
@@ -291,12 +313,6 @@ def upload_song():
 def delete_song(song_id):
     try:
         song = Song.query.get_or_404(song_id)
-        
-        # Delete file if it exists
-        if song.audio_file_path and os.path.exists(song.audio_file_path):
-            os.remove(song.audio_file_path)
-        
-        # Delete from database
         db.session.delete(song)
         db.session.commit()
         
@@ -356,7 +372,7 @@ def start_training():
     try:
         # Validate prerequisites
         songs_count = Song.query.count()
-        if songs_count < 1:  # Allow training with your existing song
+        if songs_count < 1:
             return jsonify({
                 'success': False, 
                 'error': f'Need at least 1 song to start training. Currently have {songs_count} songs.'
@@ -434,7 +450,7 @@ def generate_music():
         
         # Check training data
         songs_count = Song.query.count()
-        if songs_count < 1:  # Allow generation with your existing song
+        if songs_count < 1:
             return jsonify({
                 'success': False,
                 'error': f'Need at least 1 song in library for generation. Currently have {songs_count} songs.'
@@ -507,6 +523,11 @@ def delete_generated_song(song_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# Health check endpoint for Render
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy', 'message': 'Arabic Music AI is running!'})
 
 # Static file serving
 @app.route('/', defaults={'path': ''})
