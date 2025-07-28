@@ -721,15 +721,17 @@ def get_generated_audio(song_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# Create database tables
-with app.app_context():
-    try:
-        db.create_all()
-        songs_count = Song.query.filter_by(is_active=True).count()
-        print(f"Database initialized. Songs in library: {songs_count}")
-    except Exception as e:
-        print(f"Database error: {e}")
-
+# Initialize database with enhanced error handling
 if __name__ == '__main__':
+    # Initialize database
+    if init_database():
+        print("✅ Database initialization successful")
+    else:
+        print("❌ Database initialization failed")
+    
+    # Start the application
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+else:
+    # When running with gunicorn
+    init_database()
