@@ -429,296 +429,244 @@ window.deleteSong = async function(songId) {
     }
 };
 
-// Generation functionality
-function initializeGenerationForm() {
-    const generateBtn = document.getElementById('generate-btn');
-    if (generateBtn) {
-        generateBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const form = document.getElementById('generation-form');
-            if (form) {
-                handleGeneration({ target: form, preventDefault: () => {} });
-            }
-        });
-        console.log('Generation button initialized');
-    }
-}
-
-async function handleGeneration(event) {
-    event.preventDefault();
-    console.log('Generation form submitted');
-    
-    if (generationInProgress) {
-        alert('Generation already in progress. Please wait...');
-        return;
-    }
-    
-    const form = event.target;
-    const formData = new FormData(form);
-    const params = {};
-    for (let [key, value] of formData.entries()) {
-        params[key] = value;
-    }
-    
-    console.log('Generation parameters:', params);
-    
-    // Check required fields
-    const requiredFields = ['title', 'lyrics', 'maqam', 'style', 'tempo', 'emotion', 'region'];
-    const missingFields = requiredFields.filter(field => !params[field] || params[field].trim() === '');
-    
-    if (missingFields.length > 0) {
-        alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
-        return;
-    }
-    
-    generationInProgress = true;
-    updateGenerationStatus('generating');
-    
-    try {
-        const response = await fetch('/api/generation/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(params)
-        });
-        
-        const result = await response.json();
-        console.log('Generation response:', result);
-        
-        if (result.success) {
-            await simulateGenerationProgress();
-            alert(`🎵 Music generated successfully! "${params.title}" is ready.`);
-            loadGeneratedSongs();
-            loadDashboardData();
-        } else {
-            alert('Generation failed: ' + result.error);
-        }
-    } catch (error) {
-        console.error('Generation error:', error);
-        alert('Generation failed. Please try again.');
-    } finally {
-        generationInProgress = false;
-        updateGenerationStatus('ready');
-    }
-}
-
-async function simulateGenerationProgress() {
-    const steps = [
-        'Analyzing Arabic lyrics...',
-        'Detecting poem meter and rhythm...',
-        'Applying maqam characteristics...',
-        'Generating melody structure...',
-        'Adding harmonic progressions...',
-        'Incorporating regional style...',
-        'Applying emotional context...',
-        'Synthesizing instruments...',
-        'Finalizing composition...'
-    ];
-    
-    for (let i = 0; i < steps.length; i++) {
-        const progress = ((i + 1) / steps.length) * 100;
-        updateGenerationProgress(steps[i], progress);
-        await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
-    }
-}
-
-function updateGenerationStatus(status) {
-    const statusIcon = document.querySelector('.status-icon');
-    const statusText = document.querySelector('.status-text');
-    const progressContainer = document.getElementById('generation-progress');
-    const generateBtn = document.getElementById('generate-btn');
-    
-    if (!generateBtn) return;
-    
-    switch (status) {
-        case 'ready':
-            if (statusIcon) statusIcon.textContent = '⏸️';
-            if (statusText) statusText.textContent = 'Ready to generate music';
-            if (progressContainer) progressContainer.style.display = 'none';
-            generateBtn.disabled = false;
-            generateBtn.textContent = '🎵 Generate Music';
-            break;
+        // Enhanced generation functionality
+        async function handleGeneration(event) {
+            event.preventDefault();
+            console.log('Generation form submitted');
             
-        case 'generating':
-            if (statusIcon) statusIcon.textContent = '🎵';
-            if (statusText) statusText.textContent = 'Generating Arabic music...';
-            if (progressContainer) progressContainer.style.display = 'block';
+            if (generationInProgress) {
+                alert('Generation already in progress. Please wait...');
+                return;
+            }
+            
+            const formData = new FormData(event.target);
+            const params = {};
+            for (let [key, value] of formData.entries()) {
+                params[key] = value;
+            }
+            
+            // Check required fields
+            const requiredFields = ['title', 'lyrics', 'maqam', 'style', 'tempo', 'emotion', 'region'];
+            const missingFields = requiredFields.filter(field => !params[field] || params[field].trim() === '');
+            
+            if (missingFields.length > 0) {
+                alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
+                return;
+            }
+            
+            // Validate lyrics length
+            if (params.lyrics.length < 20) {
+                alert('Please provide more detailed Arabic lyrics (at least 20 characters)');
+                return;
+            }
+            
+            // Show generation preview
+            const confirmed = confirm(`🎵 Generate Arabic Music with these parameters?
+
+📝 Title: ${params.title}
+🎭 Artist: ${params.artist || 'AI Generated'}
+🎼 Maqam: ${params.maqam}
+🎨 Style: ${params.style}
+💓 Emotion: ${params.emotion}
+🌍 Region: ${params.region}
+🥁 Tempo: ${params.tempo} BPM
+
+Click OK to start generation...`);
+            
+            if (!confirmed) return;
+            
+            generationInProgress = true;
+            const generateBtn = document.getElementById('generate-btn');
+            const originalText = generateBtn.textContent;
+            generateBtn.textContent = '🔄 Generating Music...';
             generateBtn.disabled = true;
-            generateBtn.textContent = '🔄 Generating...';
-            break;
-    }
-}
-
-function updateGenerationProgress(step, percentage) {
-    const progressFill = document.getElementById('gen-progress-fill');
-    const progressText = document.getElementById('gen-progress-text');
-    const progressPercentage = document.getElementById('gen-progress-percentage');
-    
-    if (progressFill) progressFill.style.width = percentage + '%';
-    if (progressText) progressText.textContent = step;
-    if (progressPercentage) progressPercentage.textContent = Math.round(percentage) + '%';
-}
-
-async function loadGeneratedSongs() {
-    try {
-        const response = await fetch('/api/generation/list');
-        const data = await response.json();
-        
-        if (data.success) {
-            displayGeneratedSongs(data.generated_songs);
-        }
-    } catch (error) {
-        console.error('Error loading generated songs:', error);
-    }
-}
-
-function displayGeneratedSongs(songs) {
-    const container = document.getElementById('generated-songs');
-    if (!container) return;
-    
-    if (songs.length === 0) {
-        container.innerHTML = '<p>No songs generated yet. Fill in the parameters above and click "Generate Music" to create your first AI-generated Arabic song!</p>';
-        return;
-    }
-    
-    container.innerHTML = songs.map(song => `
-        <div class="generated-song-item">
-            <div class="song-header">
-                <div class="song-info">
-                    <h4>${song.title}</h4>
-                    <p>Generated on ${new Date(song.created_at).toLocaleDateString()} • ${song.duration || 'Medium'} duration</p>
-                </div>
-                <div class="song-actions">
-                    <button class="play-btn" onclick="playSong(${song.id})">▶️ Play</button>
-                    <button class="download-btn" onclick="downloadSong(${song.id})">⬇️ Download</button>
-                </div>
-            </div>
             
-            <div class="song-parameters">
-                <div class="parameter"><strong>Maqam:</strong> ${song.maqam}</div>
-                <div class="parameter"><strong>Style:</strong> ${song.style}</div>
-                <div class="parameter"><strong>Emotion:</strong> ${song.emotion}</div>
-                <div class="parameter"><strong>Region:</strong> ${song.region}</div>
-                <div class="parameter"><strong>Tempo:</strong> ${song.tempo} BPM</div>
-                ${song.composer ? `<div class="parameter"><strong>Composer Style:</strong> ${song.composer}</div>` : ''}
-            </div>
+            // Show progress simulation
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                generateBtn.textContent = `🔄 Generating... ${Math.round(progress)}%`;
+            }, 500);
             
-            <div class="song-lyrics" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.7); border-radius: 8px;">
-                <strong>Generated from lyrics:</strong>  
+            try {
+                const response = await fetch('/api/generation/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(params)
+                });
+                
+                const result = await response.json();
+                console.log('Generation response:', result);
+                
+                clearInterval(progressInterval);
+                
+                if (result.success) {
+                    alert(`🎉 Success! ${result.message}
 
-                <div style="max-height: 80px; overflow-y: auto; margin-top: 5px; font-style: italic;">${song.lyrics}</div>
-            </div>
-        </div>
-    `).join('');
-}
+🎵 Generated Song Details:
+• Title: ${result.generation_details.title}
+• Maqam: ${result.generation_details.maqam}
+• Style: ${result.generation_details.style}
+• Emotion: ${result.generation_details.emotion}
+• Tempo: ${result.generation_details.tempo} BPM
+• Region: ${result.generation_details.region}
+• Training Data: ${result.generation_details.training_songs_used} songs
 
-// Global functions for generated songs
-window.playSong = function(songId) {
-    alert(`🎵 Playing song ${songId}... (Audio playback will be implemented with actual generation)`);
-};
-
-window.downloadSong = function(songId) {
-    alert(`⬇️ Downloading song ${songId}... (Download will be implemented with actual generation)`);
-};
-
-// Example loading functions
-window.loadExample = function(type) {
-    const examples = {
-        romantic: {
-            title: 'حبيبي يا نور العين',
-            lyrics: 'حبيبي يا نور العين\nيا ساكن في القلب\nحبك في قلبي حنين\nيا أغلى من الذهب',
-            maqam: 'Hijaz',
-            style: 'Modern',
-            tempo: 90,
-            emotion: 'Romantic',
-            region: 'Egyptian',
-            composer: 'Mohammed Abdel Wahab'
-        },
-        traditional: {
-            title: 'يا مسافر وحدك',
-            lyrics: 'يا مسافر وحدك في الليل\nوالنجوم تضيء طريقك\nقل لي متى تعود\nوالقلب ينتظر عودتك',
-            maqam: 'Bayati',
-            style: 'Traditional',
-            tempo: 110,
-            emotion: 'Melancholic',
-            region: 'Syrian',
-            poem_bahr: 'Baseet'
-        },
-        modern: {
-            title: 'أحلام جديدة',
-            lyrics: 'أحلام جديدة في عيونك\nمستقبل مشرق ينادينا\nنمشي سوا نحو النور\nوالحب يقوي خطوانا',
-            maqam: 'Rast',
-            style: 'Modern',
-            tempo: 130,
-            emotion: 'Happy',
-            region: 'Lebanese',
-            instruments: 'modern'
-        },
-        folk: {
-            title: 'أغنية الحقول',
-            lyrics: 'في الحقول الخضراء\nنغني مع الطيور\nوالشمس تشرق علينا\nوالأرض تعطي الثمار',
-            maqam: 'Saba',
-            style: 'Folk',
-            tempo: 120,
-            emotion: 'Peaceful',
-            region: 'Sudan',
-            instruments: 'traditional'
-        }
-    };
-    
-    const example = examples[type];
-    if (!example) return;
-    
-    Object.keys(example).forEach(key => {
-        const element = document.getElementById(`gen-${key}`);
-        if (element) {
-            element.value = example[key];
-            
-            if (element.type === 'range') {
-                element.dispatchEvent(new Event('input'));
+Your generated song is now available in the "Generated Songs" section below!`);
+                    
+                    // Reset form
+                    event.target.reset();
+                    document.getElementById('gen-tempo-value').textContent = '120 BPM';
+                    
+                    // Reload data
+                    loadGeneratedSongs();
+                    loadDashboardData();
+                } else {
+                    alert('❌ Generation failed: ' + result.error);
+                }
+            } catch (error) {
+                clearInterval(progressInterval);
+                console.error('Generation error:', error);
+                alert('❌ Generation failed. Please check your internet connection and try again.');
+            } finally {
+                generationInProgress = false;
+                generateBtn.textContent = originalText;
+                generateBtn.disabled = false;
             }
         }
-    });
-    
-    alert(`✨ Loaded ${type} song example! You can modify the parameters and generate.`);
-};
 
-window.previewParameters = function() {
-    const form = document.getElementById('generation-form');
-    if (!form) return;
-    
-    const formData = new FormData(form);
-    const params = {};
-    
-    for (let [key, value] of formData.entries()) {
-        if (value) params[key] = value;
-    }
-    
-    const preview = `
-🎵 Generation Parameters Preview:
+        // Enhanced generated songs display
+        function displayGeneratedSongs(songs) {
+            const container = document.getElementById('generated-songs');
+            if (!container) return;
+            
+            if (songs.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: rgba(255,255,255,0.8); border-radius: 10px;">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">🎵</div>
+                        <h3>No songs generated yet</h3>
+                        <p>Fill in the parameters above and click "Generate Music" to create your first AI-generated Arabic song!</p>
+                        <p><small>💡 Tip: Make sure you have uploaded at least 3 songs to your library for better generation quality.</small></p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = songs.map(song => `
+                <div class="song-item" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border-left: 4px solid #667eea;">
+                    <div class="song-header">
+                        <div>
+                            <h3>🎵 ${song.title}</h3>
+                            <p><strong>by ${song.artist}</strong> • Generated on ${new Date(song.created_at).toLocaleDateString()}</p>
+                            <div style="margin-top: 8px;">
+                                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 5px;">${song.maqam}</span>
+                                <span style="background: #764ba2; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 5px;">${song.style}</span>
+                                <span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">${song.emotion}</span>
+                            </div>
+                        </div>
+                        <div class="song-actions">
+                            <button class="edit-btn" onclick="previewGeneratedSong(${song.id})" title="Preview Details">👁️ Preview</button>
+                            <button class="edit-btn" onclick="playSong(${song.id})" title="Play Audio">▶️ Play</button>
+                            <button class="delete-btn" onclick="deleteGeneratedSong(${song.id})" title="Delete Song">🗑️ Delete</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <p><strong>🎼 Musical Details:</strong> ${song.region} style • ${song.tempo} BPM • Creativity: ${song.creativity_level}/10</p>
+                        <p><strong>📝 Lyrics Preview:</strong> ${song.lyrics.substring(0, 150)}${song.lyrics.length > 150 ? '...' : ''}</p>
+                        ${song.composer ? `<p><strong>🎭 Composer Style:</strong> ${song.composer}</p>` : ''}
+                        ${song.poem_bahr ? `<p><strong>📖 Poem Bahr:</strong> ${song.poem_bahr}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
 
-📝 Title: ${params.title || 'Not specified'}
-🎤 Artist: ${params.artist || 'AI Generated'}
-📜 Lyrics: ${params.lyrics ? params.lyrics.substring(0, 50) + '...' : 'Not provided'}
+        // New functions for generated songs
+        window.previewGeneratedSong = async function(songId) {
+            try {
+                const response = await fetch(`/api/generation/${songId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const song = data.song;
+                    alert(`🎵 Generated Song Details
 
-🎼 Musical Settings:
-• Maqam: ${params.maqam || 'Not selected'}
-• Style: ${params.style || 'Not selected'}
-• Tempo: ${params.tempo || 'Not set'} BPM
-• Emotion: ${params.emotion || 'Not selected'}
-• Region: ${params.region || 'Not selected'}
+📝 Title: ${song.title}
+🎭 Artist: ${song.artist}
+🎼 Maqam: ${song.maqam}
+🎨 Style: ${song.style}
+💓 Emotion: ${song.emotion}
+🌍 Region: ${song.region}
+🥁 Tempo: ${song.tempo} BPM
+⏱️ Duration: ${song.duration}
+🎹 Instruments: ${song.instruments}
+🎨 Creativity Level: ${song.creativity_level}/10
+📅 Generated: ${new Date(song.created_at).toLocaleString()}
 
-🎹 Optional:
-• Composer Style: ${params.composer || 'None'}
-• Poem Bahr: ${params.poem_bahr || 'Auto-detect'}
-• Duration: ${params.duration || 'Medium'}
-• Instruments: ${params.instruments || 'Modern'}
-• Creativity: ${params.creativity || '7'}/10
-    `;
-    
-    alert(preview);
-};
+📝 Full Lyrics:
+${song.lyrics}
+
+${song.composer ? `🎭 Composer Style: ${song.composer}\n` : ''}${song.poem_bahr ? `📖 Poem Bahr: ${song.poem_bahr}` : ''}`);
+                } else {
+                    alert('Failed to load song details: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error loading song details:', error);
+                alert('Failed to load song details. Please try again.');
+            }
+        };
+
+        window.deleteGeneratedSong = async function(songId) {
+            if (confirm('Are you sure you want to delete this generated song? This action cannot be undone.')) {
+                try {
+                    const response = await fetch(`/api/generation/${songId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('🗑️ Generated song deleted successfully!');
+                        loadGeneratedSongs();
+                        loadDashboardData();
+                    } else {
+                        alert('Delete failed: ' + result.error);
+                    }
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    alert('Delete failed. Please try again.');
+                }
+            }
+        };
+
+        // Update the existing playSong function
+        window.playSong = async function(songId) {
+            try {
+                const response = await fetch(`/api/generation/${songId}/audio`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`🎵 Audio Playback
+
+${data.demo_info.note}
+
+Song: ${data.demo_info.title}
+Duration: ${data.demo_info.duration}
+Format: ${data.demo_info.format}
+Quality: ${data.demo_info.quality}
+
+🔧 Real audio playback will be available when the AI model is fully integrated with audio synthesis capabilities.`);
+                } else {
+                    alert('Audio playback failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Audio playback error:', error);
+                alert('Audio playback failed. Please try again.');
+            }
+        };
+
         // Training functionality
         async function checkTrainingPrerequisites() {
             try {
