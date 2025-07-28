@@ -18,19 +18,16 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# Smart database configuration - works locally and on Render
-if os.environ.get('DATABASE_URL'):
-    # Use PostgreSQL on Render if DATABASE_URL is provided
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+# Simple, reliable database configuration for Render
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Fix common Render PostgreSQL URL issues
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    # Use local SQLite database (preserves your existing data)
-    local_db_path = os.path.join(os.path.dirname(__file__), 'src', 'database', 'app.db')
-    if os.path.exists(local_db_path):
-        # Use existing database with your songs
-        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{local_db_path}"
-    else:
-        # Create new database in current directory
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
+    # Local development - use simple SQLite
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -44,9 +41,9 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Flexible Song model that works with both old and new database structures
+# Simple Song model for Render deployment
 class Song(db.Model):
-    __tablename__ = 'song'
+    __tablename__ = 'songs'
     
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -59,20 +56,9 @@ class Song(db.Model):
     region = db.Column(db.String(50), nullable=False)
     composer = db.Column(db.String(200))
     poem_bahr = db.Column(db.String(50))
-    
-    # Optional fields for compatibility
-    audio_file_path = db.Column(db.String(500))
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
-    processed = db.Column(db.Boolean, default=False)
-    duration = db.Column(db.Float)
-    file_size = db.Column(db.Integer)
-    audio_features = db.Column(db.Text)
-    lyrics_features = db.Column(db.Text)
-    
-    # New fields for better functionality
     filename = db.Column(db.String(255))
+    file_size = db.Column(db.Integer)
     file_type = db.Column(db.String(10))
-    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
@@ -88,12 +74,10 @@ class Song(db.Model):
             'region': self.region,
             'composer': self.composer,
             'poem_bahr': self.poem_bahr,
-            'filename': self.filename or f"{self.title}.mp3",
+            'filename': self.filename,
             'file_size': self.file_size,
             'file_size_mb': round(self.file_size / (1024*1024), 2) if self.file_size else 0,
-            'upload_date': (self.upload_date or self.created_at).isoformat() if (self.upload_date or self.created_at) else None,
-            'processed': self.processed,
-            'duration': self.duration
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class TrainingSession(db.Model):
@@ -152,13 +136,13 @@ class GeneratedSong(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
-# Create tables safely
+# Create tables
 with app.app_context():
     try:
         db.create_all()
-        print("Database tables created successfully!")
+        print("✅ Database tables created successfully!")
     except Exception as e:
-        print(f"Database creation error: {e}")
+        print(f"❌ Database creation error: {e}")
 
 # Dashboard endpoints
 @app.route('/api/dashboard/stats')
@@ -260,7 +244,7 @@ def upload_song():
         except ValueError:
             return jsonify({'success': False, 'error': 'Invalid tempo value'}), 400
         
-        # Get file info (don't save file in production - just get metadata)
+        # Get file info
         filename = secure_filename(file.filename)
         file_data = file.read()
         file_size = len(file_data)
@@ -280,10 +264,6 @@ def upload_song():
             filename=filename,
             file_type=filename.rsplit('.', 1)[1].lower() if '.' in filename else 'mp3',
             file_size=file_size,
-            audio_file_path=f"/uploads/{filename}",  # Virtual path for compatibility
-            upload_date=datetime.utcnow(),
-            processed=False,
-            is_active=True,
             created_at=datetime.utcnow()
         )
         
@@ -343,7 +323,7 @@ def training_status():
                 }
             })
         
-        # Simulate training progress if status is training
+        # Simulate training progress
         if latest_session.status == 'training' and latest_session.progress < 100:
             latest_session.progress = min(100, latest_session.progress + random.randint(2, 8))
             if latest_session.progress >= 100:
@@ -370,7 +350,6 @@ def training_status():
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
     try:
-        # Validate prerequisites
         songs_count = Song.query.count()
         if songs_count < 1:
             return jsonify({
@@ -378,10 +357,7 @@ def start_training():
                 'error': f'Need at least 1 song to start training. Currently have {songs_count} songs.'
             }), 400
         
-        # Get training configuration
         data = request.get_json() or {}
-        
-        # Create training session
         session_id = str(uuid.uuid4())
         
         training_session = TrainingSession(
@@ -438,7 +414,6 @@ def generate_music():
     try:
         data = request.get_json()
         
-        # Validate required fields
         required_fields = ['lyrics', 'maqam', 'style', 'tempo', 'emotion']
         missing_fields = [field for field in required_fields if not data.get(field)]
         
@@ -448,7 +423,6 @@ def generate_music():
                 'error': f'Missing required fields: {", ".join(missing_fields)}'
             }), 400
         
-        # Check training data
         songs_count = Song.query.count()
         if songs_count < 1:
             return jsonify({
@@ -456,7 +430,6 @@ def generate_music():
                 'error': f'Need at least 1 song in library for generation. Currently have {songs_count} songs.'
             }), 400
         
-        # Validate tempo
         try:
             tempo_int = int(data['tempo'])
             if tempo_int < 60 or tempo_int > 180:
@@ -464,7 +437,6 @@ def generate_music():
         except ValueError:
             return jsonify({'success': False, 'error': 'Invalid tempo value'}), 400
         
-        # Create generated song record
         generated_song = GeneratedSong(
             title=data.get('title', f'Generated Song {GeneratedSong.query.count() + 1}'),
             lyrics=data['lyrics'],
@@ -524,7 +496,7 @@ def delete_generated_song(song_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Health check endpoint for Render
+# Health check
 @app.route('/health')
 def health_check():
     return jsonify({'status': 'healthy', 'message': 'Arabic Music AI is running!'})
