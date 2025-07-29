@@ -765,3 +765,92 @@ function removeSelectedLyricsFile() {
         lyricsFileInput.value = '';
     }
 }
+// Helper function to reset audio file upload area
+function resetFileUploadArea() {
+    const uploadArea = document.getElementById("file-upload-area");
+    if (uploadArea) {
+        uploadArea.innerHTML = `
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag and drop your audio file here, or click to browse</p>
+            <input type="file" id="audio-file" name="audio_file" accept=".mp3,.wav,.flac,.m4a" hidden required>
+            <button type="button" class="browse-btn">
+                Browse Files
+            </button>
+        `;
+        
+        // Re-attach event listeners
+        const fileInput = document.getElementById("audio-file");
+        const browseButton = document.querySelector("#file-upload-area .browse-btn");
+        
+        if (fileInput) {
+            fileInput.addEventListener("change", handleFileSelect);
+        }
+        
+        if (browseButton) {
+            browseButton.addEventListener("click", function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (fileInput) {
+                    fileInput.click();
+                }
+            });
+        }
+        
+        if (uploadArea) {
+            uploadArea.addEventListener("dragover", handleDragOver);
+            uploadArea.addEventListener("drop", handleFileDrop);
+            uploadArea.addEventListener("click", function(e) {
+                if (e.target === uploadArea || e.target.classList.contains('upload-text')) {
+                    if (fileInput) {
+                        fileInput.click();
+                    }
+                }
+            });
+        }
+    }
+}
+
+// Helper function to reset lyrics file upload area
+function resetLyricsUploadArea() {
+    const lyricsUploadArea = document.getElementById("lyrics-upload-area");
+    if (lyricsUploadArea) {
+        lyricsUploadArea.innerHTML = `
+            <i class="fas fa-file-text"></i>
+            <p>Drag and drop your lyrics .txt file here, or click to browse</p>
+            <input type="file" id="lyrics-file" name="lyrics_file" accept=".txt" hidden required>
+            <button type="button" class="browse-btn">
+                Browse Lyrics File
+            </button>
+        `;
+        
+        // Re-attach event listeners
+        const lyricsFileInput = document.getElementById("lyrics-file");
+        const lyricsBrowseButton = document.querySelector("#lyrics-upload-area .browse-btn");
+        
+        if (lyricsFileInput) {
+            lyricsFileInput.addEventListener("change", handleLyricsFileSelect);
+        }
+        
+        if (lyricsBrowseButton) {
+            lyricsBrowseButton.addEventListener("click", function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (lyricsFileInput) {
+                    lyricsFileInput.click();
+                }
+            });
+        }
+        
+        if (lyricsUploadArea) {
+            lyricsUploadArea.addEventListener("dragover", handleLyricsDragOver);
+            lyricsUploadArea.addEventListener("drop", handleLyricsFileDrop);
+            lyricsUploadArea.addEventListener("click", function(e) {
+                if (e.target === lyricsUploadArea || e.target.classList.contains('upload-text')) {
+                    if (lyricsFileInput) {
+                        lyricsFileInput.click();
+                    }
+                }
+            });
+        }
+    }
+}
