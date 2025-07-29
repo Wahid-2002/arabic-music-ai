@@ -133,9 +133,17 @@
                                 </div>
 
                                 <div class="form-group full-width">
-                                    <label for="lyrics">Arabic Lyrics *</label>
-                                    <textarea id="lyrics" name="lyrics" rows="6" placeholder="Enter Arabic lyrics here..." required></textarea>
-                                </div>
+    <label for="lyrics-file">Arabic Lyrics File (.txt) *</label>
+    <div class="file-upload-area" id="lyrics-upload-area">
+        <i class="fas fa-file-text"></i>
+        <p>Drag and drop your lyrics .txt file here, or click to browse</p>
+        <input type="file" id="lyrics-file" name="lyrics_file" accept=".txt" hidden required>
+        <button type="button" class="browse-btn">
+            Browse Lyrics File
+        </button>
+    </div>
+</div>
+
 
                                 <div class="form-group">
                                     <label for="maqam">Maqam *</label>
