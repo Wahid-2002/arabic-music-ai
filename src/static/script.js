@@ -3,6 +3,7 @@ let currentTab = 'dashboard';
 let trainingInterval = null;
 let isTraining = false;
 let selectedAudioFile = null;
+let selectedLyricsFile = null;
 
 // API base URL
 const API_BASE = '/api';
