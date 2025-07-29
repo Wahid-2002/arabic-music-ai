@@ -854,3 +854,73 @@ function resetLyricsUploadArea() {
         }
     }
 }
+// Simple upload button fix - add this at the very end
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Check if audio file is selected
+            if (!selectedAudioFile) {
+                alert('Please select an audio file');
+                return;
+            }
+            
+            // Check if lyrics file is selected
+            if (!selectedLyricsFile) {
+                alert('Please select a lyrics .txt file');
+                return;
+            }
+            
+            // Get form values
+            const title = document.getElementById('title').value.trim();
+            const artist = document.getElementById('artist').value.trim();
+            
+            if (!title || !artist) {
+                alert('Please fill in title and artist');
+                return;
+            }
+            
+            // Create FormData
+            const formData = new FormData();
+            formData.append('audio_file', selectedAudioFile);
+            formData.append('lyrics_file', selectedLyricsFile);
+            formData.append('title', title);
+            formData.append('artist', artist);
+            formData.append('composer', document.getElementById('composer').value);
+            formData.append('maqam', document.getElementById('maqam').value);
+            formData.append('style', document.getElementById('style').value);
+            formData.append('tempo', document.getElementById('tempo').value);
+            formData.append('emotion', document.getElementById('emotion').value);
+            formData.append('region', document.getElementById('region').value);
+            formData.append('poem_bahr', document.getElementById('poem-bahr').value);
+            
+            // Disable button
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            
+            // Send request
+            fetch('/api/songs/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Song uploaded successfully!');
+                    location.reload(); // Simple refresh
+                } else {
+                    alert('Upload failed: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Upload failed: ' + error.message);
+            })
+            .finally(() => {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Song';
+            });
+        });
+    }
+});
