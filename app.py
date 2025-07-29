@@ -18,17 +18,8 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# Simple, reliable database configuration for Render
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    # Fix common Render PostgreSQL URL issues
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-else:
-    # Local development - use simple SQLite
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
-
+# Use SQLite for simplicity and reliability - works everywhere
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
@@ -41,7 +32,7 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Simple Song model for Render deployment
+# Song model
 class Song(db.Model):
     __tablename__ = 'songs'
     
@@ -138,24 +129,39 @@ class GeneratedSong(db.Model):
 
 # Create tables
 with app.app_context():
-    try:
-        db.create_all()
-        print("✅ Database tables created successfully!")
-    except Exception as e:
-        print(f"❌ Database creation error: {e}")
+    db.create_all()
+    
+    # Add sample data if database is empty
+    if Song.query.count() == 0:
+        sample_song = Song(
+            title="Habibati Wal Matar",
+            artist="Kazim",
+            lyrics="يا حبيبتي والمطر\nيسقط على الشجر\nوالقلب يحن إليك\nفي كل وقت وحين",
+            maqam="unknown",
+            style="modern",
+            tempo=120,
+            emotion="romantic",
+            region="iraqi",
+            composer="Kazim",
+            poem_bahr="baseet",
+            filename="habibati_wal_matar.mp3",
+            file_size=5242880,  # 5MB
+            file_type="mp3"
+        )
+        db.session.add(sample_song)
+        db.session.commit()
+        print("✅ Sample song added to database!")
 
-# Dashboard endpoints
+# API Routes
 @app.route('/api/dashboard/stats')
 def dashboard_stats():
     try:
         songs_count = Song.query.count()
         total_size = db.session.query(db.func.sum(Song.file_size)).scalar() or 0
         
-        # Get unique maqams and regions
         maqams = db.session.query(Song.maqam).distinct().all()
         regions = db.session.query(Song.region).distinct().all()
         
-        # Get training status
         latest_training = TrainingSession.query.order_by(TrainingSession.created_at.desc()).first()
         is_training = latest_training and latest_training.status == 'training' if latest_training else False
         model_accuracy = latest_training.final_accuracy if latest_training and latest_training.final_accuracy else 0
@@ -179,7 +185,6 @@ def dashboard_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Song management endpoints
 @app.route('/api/songs/list')
 def list_songs():
     try:
@@ -194,7 +199,6 @@ def list_songs():
 @app.route('/api/songs/upload', methods=['POST'])
 def upload_song():
     try:
-        # Validate file
         if 'audio_file' not in request.files:
             return jsonify({'success': False, 'error': 'No audio file provided'}), 400
         
@@ -219,14 +223,8 @@ def upload_song():
         
         # Validate required fields
         required_fields = {
-            'title': title,
-            'artist': artist,
-            'lyrics': lyrics,
-            'maqam': maqam,
-            'style': style,
-            'tempo': tempo,
-            'emotion': emotion,
-            'region': region
+            'title': title, 'artist': artist, 'lyrics': lyrics, 'maqam': maqam,
+            'style': style, 'tempo': tempo, 'emotion': emotion, 'region': region
         }
         
         missing_fields = [field for field, value in required_fields.items() if not value]
@@ -251,42 +249,27 @@ def upload_song():
         
         # Create song record
         song = Song(
-            title=title,
-            artist=artist,
-            lyrics=lyrics,
-            maqam=maqam,
-            style=style,
-            tempo=tempo_int,
-            emotion=emotion,
-            region=region,
+            title=title, artist=artist, lyrics=lyrics, maqam=maqam, style=style,
+            tempo=tempo_int, emotion=emotion, region=region,
             composer=composer if composer else None,
             poem_bahr=poem_bahr if poem_bahr else None,
             filename=filename,
             file_type=filename.rsplit('.', 1)[1].lower() if '.' in filename else 'mp3',
-            file_size=file_size,
-            created_at=datetime.utcnow()
+            file_size=file_size, created_at=datetime.utcnow()
         )
         
-        # Save to database
-        try:
-            db.session.add(song)
-            db.session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': f'Song "{title}" uploaded successfully!',
-                'song_id': song.id,
-                'file_size': f'{file_size / (1024*1024):.2f} MB'
-            })
-            
-        except Exception as db_error:
-            db.session.rollback()
-            return jsonify({
-                'success': False,
-                'error': f'Failed to save song: {str(db_error)}'
-            }), 500
+        db.session.add(song)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Song "{title}" uploaded successfully!',
+            'song_id': song.id,
+            'file_size': f'{file_size / (1024*1024):.2f} MB'
+        })
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': f'Upload failed: {str(e)}'}), 500
 
 @app.route('/api/songs/<int:song_id>', methods=['DELETE'])
@@ -295,17 +278,11 @@ def delete_song(song_id):
         song = Song.query.get_or_404(song_id)
         db.session.delete(song)
         db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Song deleted successfully!'
-        })
-        
+        return jsonify({'success': True, 'message': 'Song deleted successfully!'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Training endpoints
 @app.route('/api/training/status')
 def training_status():
     try:
@@ -315,15 +292,11 @@ def training_status():
             return jsonify({
                 'success': True,
                 'status': {
-                    'is_training': False,
-                    'progress': 0,
-                    'current_epoch': 0,
-                    'current_loss': 0,
-                    'status': 'not_started'
+                    'is_training': False, 'progress': 0, 'current_epoch': 0,
+                    'current_loss': 0, 'status': 'not_started'
                 }
             })
         
-        # Simulate training progress
         if latest_session.status == 'training' and latest_session.progress < 100:
             latest_session.progress = min(100, latest_session.progress + random.randint(2, 8))
             if latest_session.progress >= 100:
@@ -343,7 +316,6 @@ def training_status():
                 'session_id': latest_session.session_id
             }
         })
-        
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -361,9 +333,7 @@ def start_training():
         session_id = str(uuid.uuid4())
         
         training_session = TrainingSession(
-            session_id=session_id,
-            status='training',
-            progress=0,
+            session_id=session_id, status='training', progress=0,
             epochs=int(data.get('epochs', 100)),
             learning_rate=float(data.get('learning_rate', 0.001)),
             batch_size=int(data.get('batch_size', 32)),
@@ -374,12 +344,10 @@ def start_training():
         db.session.commit()
         
         return jsonify({
-            'success': True,
-            'session_id': session_id,
+            'success': True, 'session_id': session_id,
             'message': 'Training started successfully!',
             'estimated_time': '30-45 minutes'
         })
-        
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -393,22 +361,13 @@ def stop_training():
             latest_session.status = 'stopped'
             latest_session.completed_at = datetime.utcnow()
             db.session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Training stopped successfully!'
-            })
+            return jsonify({'success': True, 'message': 'Training stopped successfully!'})
         else:
-            return jsonify({
-                'success': False,
-                'error': 'No active training session found'
-            }), 400
-        
+            return jsonify({'success': False, 'error': 'No active training session found'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Generation endpoints
 @app.route('/api/generation/generate', methods=['POST'])
 def generate_music():
     try:
@@ -439,20 +398,13 @@ def generate_music():
         
         generated_song = GeneratedSong(
             title=data.get('title', f'Generated Song {GeneratedSong.query.count() + 1}'),
-            lyrics=data['lyrics'],
-            maqam=data['maqam'],
-            style=data['style'],
-            tempo=tempo_int,
-            emotion=data['emotion'],
+            lyrics=data['lyrics'], maqam=data['maqam'], style=data['style'],
+            tempo=tempo_int, emotion=data['emotion'],
             region=data.get('region', 'Mixed'),
-            composer=data.get('composer'),
-            poem_bahr=data.get('poem_bahr'),
-            duration='Medium',
-            instruments='Modern',
-            creativity=7,
+            composer=data.get('composer'), poem_bahr=data.get('poem_bahr'),
+            duration='Medium', instruments='Modern', creativity=7,
             generation_time=round(random.uniform(2.0, 5.0), 1),
-            model_version='v1.0',
-            training_session_id='demo'
+            model_version='v1.0', training_session_id='demo'
         )
         
         db.session.add(generated_song)
@@ -464,7 +416,6 @@ def generate_music():
             'song_id': generated_song.id,
             'generation_time': f'{generated_song.generation_time} seconds'
         })
-        
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -473,10 +424,7 @@ def generate_music():
 def list_generated_songs():
     try:
         songs = GeneratedSong.query.order_by(GeneratedSong.created_at.desc()).all()
-        return jsonify({
-            'success': True,
-            'songs': [song.to_dict() for song in songs]
-        })
+        return jsonify({'success': True, 'songs': [song.to_dict() for song in songs]})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -486,22 +434,15 @@ def delete_generated_song(song_id):
         song = GeneratedSong.query.get_or_404(song_id)
         db.session.delete(song)
         db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Generated song deleted successfully!'
-        })
-        
+        return jsonify({'success': True, 'message': 'Generated song deleted successfully!'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Health check
 @app.route('/health')
 def health_check():
     return jsonify({'status': 'healthy', 'message': 'Arabic Music AI is running!'})
 
-# Static file serving
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
