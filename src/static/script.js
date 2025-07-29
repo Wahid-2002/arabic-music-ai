@@ -637,3 +637,85 @@ function downloadSong(audioPath) {
     // Implement song download
     window.open(audioPath, '_blank');
 }
+// Lyrics file handling functions (ADD THESE AT THE END)
+function handleLyricsFileSelect(e) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        selectedLyricsFile = files[0];
+        updateLyricsFileDisplay(selectedLyricsFile);
+    }
+}
+
+function handleLyricsDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+}
+
+function handleLyricsFileDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        const file = files[0];
+        if (isValidLyricsFile(file)) {
+            selectedLyricsFile = file;
+            updateLyricsFileDisplay(selectedLyricsFile);
+        } else {
+            showToast('Please select a valid .txt file for lyrics', 'error');
+        }
+    }
+}
+
+function isValidLyricsFile(file) {
+    return file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
+}
+
+function updateLyricsFileDisplay(file) {
+    const lyricsUploadArea = document.getElementById("lyrics-upload-area");
+    if (lyricsUploadArea && file) {
+        const fileName = file.name;
+        const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+        
+        lyricsUploadArea.innerHTML = `
+            <div class="file-selected">
+                <div class="file-icon">📄</div>
+                <div class="file-info">
+                    <div class="file-name">${fileName}</div>
+                    <div class="file-size">${fileSize}</div>
+                </div>
+                <button type="button" class="remove-file" onclick="removeSelectedLyricsFile()">×</button>
+            </div>
+        `;
+    }
+}
+
+function removeSelectedLyricsFile() {
+    selectedLyricsFile = null;
+    const lyricsUploadArea = document.getElementById("lyrics-upload-area");
+    if (lyricsUploadArea) {
+        lyricsUploadArea.innerHTML = `
+            <i class="fas fa-file-text"></i>
+            <p>Drag and drop your lyrics .txt file here, or click to browse</p>
+            <button type="button" class="browse-btn">Browse Lyrics File</button>
+        `;
+        
+        const lyricsBrowseButton = document.querySelector("#lyrics-upload-area .browse-btn");
+        if (lyricsBrowseButton) {
+            lyricsBrowseButton.addEventListener("click", function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const lyricsFileInput = document.getElementById("lyrics-file");
+                if (lyricsFileInput) {
+                    lyricsFileInput.click();
+                }
+            });
+        }
+    }
+    
+    const lyricsFileInput = document.getElementById("lyrics-file");
+    if (lyricsFileInput) {
+        lyricsFileInput.value = '';
+    }
+}
