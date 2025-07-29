@@ -235,19 +235,22 @@ function removeSelectedFile() {
 function handleUpload(e) {
     e.preventDefault();
     
+    // Check if audio file is selected
     if (!selectedAudioFile) {
         showToast('Please select an audio file', 'error');
         return;
     }
     
-    const formData = new FormData();
-    formData.append('audio_file', selectedAudioFile);
+    // Check if lyrics file is selected
+    if (!selectedLyricsFile) {
+        showToast('Please select a lyrics .txt file', 'error');
+        return;
+    }
     
     // Get form values
-    const title = document.getElementById('title').value;
-    const artist = document.getElementById('artist').value;
-    const composer = document.getElementById('composer').value;
-    const lyrics = document.getElementById('lyrics').value;
+    const title = document.getElementById('title').value.trim();
+    const artist = document.getElementById('artist').value.trim();
+    const composer = document.getElementById('composer').value.trim();
     const maqam = document.getElementById('maqam').value;
     const style = document.getElementById('style').value;
     const tempo = document.getElementById('tempo').value;
@@ -255,11 +258,26 @@ function handleUpload(e) {
     const region = document.getElementById('region').value;
     const poemBahr = document.getElementById('poem-bahr').value;
     
-    // Append form data
+    // Validate required fields
+    if (!title || !artist || !maqam || !style || !tempo || !emotion || !region) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    // Validate tempo
+    const tempoInt = parseInt(tempo);
+    if (isNaN(tempoInt) || tempoInt < 60 || tempoInt > 180) {
+        showToast('Tempo must be between 60 and 180 BPM', 'error');
+        return;
+    }
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('audio_file', selectedAudioFile);
+    formData.append('lyrics_file', selectedLyricsFile);  // Add lyrics file
     formData.append('title', title);
     formData.append('artist', artist);
     formData.append('composer', composer);
-    formData.append('lyrics', lyrics);
     formData.append('maqam', maqam);
     formData.append('style', style);
     formData.append('tempo', tempo);
@@ -267,35 +285,63 @@ function handleUpload(e) {
     formData.append('region', region);
     formData.append('poem_bahr', poemBahr);
     
-    // Show loading state
-    const submitBtn = document.querySelector('#upload-form button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Uploading...';
-    submitBtn.disabled = true;
+    // Show loading
+    showLoading('Uploading song...');
     
-    fetch(`${API_BASE}/songs/upload`, {
+    // Disable upload button
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
+    }
+    
+    // Send request
+    fetch('/api/songs/upload', {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
+        hideLoading();
+        
         if (data.success) {
-            showToast('Song uploaded successfully!', 'success');
+            showToast(data.message, 'success');
+            
+            // Reset form
             document.getElementById('upload-form').reset();
-            removeSelectedFile();
+            
+            // Clear selected files
+            selectedAudioFile = null;
+            selectedLyricsFile = null;
+            
+            // Reset file upload areas
+            resetFileUploadArea();
+            resetLyricsUploadArea();
+            
+            // Reload data
             loadSongs();
             loadDashboardData();
+            
+            // Reset tempo display
+            const tempoValue = document.querySelector("#upload .tempo-value");
+            if (tempoValue) {
+                tempoValue.textContent = "120 BPM";
+            }
         } else {
             showToast(data.error || 'Upload failed', 'error');
         }
     })
     .catch(error => {
+        hideLoading();
         console.error('Upload error:', error);
         showToast('Upload failed: ' + error.message, 'error');
     })
     .finally(() => {
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
+        // Re-enable upload button
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload Song';
+        }
     });
 }
 
