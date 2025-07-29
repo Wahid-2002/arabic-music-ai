@@ -70,6 +70,36 @@ function setupEventListeners() {
     if (uploadForm) {
         uploadForm.addEventListener("submit", handleUpload);
     }
+// Lyrics file upload (ADD THIS INSIDE setupEventListeners function)
+const lyricsFileInput = document.getElementById("lyrics-file");
+const lyricsUploadArea = document.getElementById("lyrics-upload-area");
+const lyricsBrowseButton = document.querySelector("#lyrics-upload-area .browse-btn");
+
+if (lyricsFileInput) {
+    lyricsFileInput.addEventListener("change", handleLyricsFileSelect);
+}
+
+if (lyricsBrowseButton) {
+    lyricsBrowseButton.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (lyricsFileInput) {
+            lyricsFileInput.click();
+        }
+    });
+}
+
+if (lyricsUploadArea) {
+    lyricsUploadArea.addEventListener("dragover", handleLyricsDragOver);
+    lyricsUploadArea.addEventListener("drop", handleLyricsFileDrop);
+    lyricsUploadArea.addEventListener("click", function(e) {
+        if (e.target === lyricsUploadArea || e.target.classList.contains('upload-text')) {
+            if (lyricsFileInput) {
+                lyricsFileInput.click();
+            }
+        }
+    });
+}
 
     // Tempo sliders
     const tempoSlider = document.getElementById("tempo");
