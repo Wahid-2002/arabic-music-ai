@@ -10,6 +10,7 @@ const API_BASE = '/api';
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing app...');
     initializeApp();
 });
 
@@ -18,11 +19,12 @@ function initializeApp() {
     loadDashboardData();
     loadSongs();
     loadGeneratedSongs();
-    loadGenerationPresets();
     checkTrainingStatus();
 }
 
 function setupEventListeners() {
+    console.log('Setting up event listeners...');
+    
     // Tab navigation
     document.querySelectorAll(".nav-tab").forEach(tab => {
         tab.addEventListener("click", function() {
@@ -30,18 +32,15 @@ function setupEventListeners() {
         });
     });
 
-    // File upload
+    // Audio file upload
     const fileInput = document.getElementById("audio-file");
     const uploadArea = document.getElementById("file-upload-area");
-    const uploadForm = document.getElementById("upload-form");
     const browseButton = document.querySelector("#file-upload-area .browse-btn");
 
-    // Listen for changes on the hidden file input
     if (fileInput) {
         fileInput.addEventListener("change", handleFileSelect);
     }
 
-    // Handle browse button click
     if (browseButton) {
         browseButton.addEventListener("click", function(e) {
             e.preventDefault();
@@ -52,12 +51,10 @@ function setupEventListeners() {
         });
     }
 
-    // Handle drag and drop for the upload area
     if (uploadArea) {
         uploadArea.addEventListener("dragover", handleDragOver);
         uploadArea.addEventListener("drop", handleFileDrop);
         uploadArea.addEventListener("click", function(e) {
-            // Only trigger file input if clicking on the upload area itself, not buttons
             if (e.target === uploadArea || e.target.classList.contains('upload-text')) {
                 if (fileInput) {
                     fileInput.click();
@@ -65,43 +62,70 @@ function setupEventListeners() {
             }
         });
     }
-    
-    // Upload form
-    if (uploadForm) {
-        uploadForm.addEventListener("submit", handleUpload);
+
+    // Lyrics file upload
+    const lyricsFileInput = document.getElementById("lyrics-file");
+    const lyricsUploadArea = document.getElementById("lyrics-upload-area");
+    const lyricsBrowseButton = document.querySelector("#lyrics-upload-area .browse-btn");
+
+    if (lyricsFileInput) {
+        lyricsFileInput.addEventListener("change", handleLyricsFileSelect);
     }
-// Lyrics file upload (ADD THIS INSIDE setupEventListeners function)
-const lyricsFileInput = document.getElementById("lyrics-file");
-const lyricsUploadArea = document.getElementById("lyrics-upload-area");
-const lyricsBrowseButton = document.querySelector("#lyrics-upload-area .browse-btn");
 
-if (lyricsFileInput) {
-    lyricsFileInput.addEventListener("change", handleLyricsFileSelect);
-}
-
-if (lyricsBrowseButton) {
-    lyricsBrowseButton.addEventListener("click", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (lyricsFileInput) {
-            lyricsFileInput.click();
-        }
-    });
-}
-
-if (lyricsUploadArea) {
-    lyricsUploadArea.addEventListener("dragover", handleLyricsDragOver);
-    lyricsUploadArea.addEventListener("drop", handleLyricsFileDrop);
-    lyricsUploadArea.addEventListener("click", function(e) {
-        if (e.target === lyricsUploadArea || e.target.classList.contains('upload-text')) {
+    if (lyricsBrowseButton) {
+        lyricsBrowseButton.addEventListener("click", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             if (lyricsFileInput) {
                 lyricsFileInput.click();
             }
-        }
-    });
-}
+        });
+    }
 
-    // Tempo sliders
+    if (lyricsUploadArea) {
+        lyricsUploadArea.addEventListener("dragover", handleLyricsDragOver);
+        lyricsUploadArea.addEventListener("drop", handleLyricsFileDrop);
+        lyricsUploadArea.addEventListener("click", function(e) {
+            if (e.target === lyricsUploadArea || e.target.classList.contains('upload-text')) {
+                if (lyricsFileInput) {
+                    lyricsFileInput.click();
+                }
+            }
+        });
+    }
+
+    // Upload button - DIRECT EVENT LISTENER
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+        console.log('Upload button found, attaching click listener...');
+        uploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Upload button clicked!');
+            handleUpload();
+        });
+    } else {
+        console.error('Upload button not found!');
+    }
+
+    // Training buttons
+    const startTrainingBtn = document.getElementById('start-training-btn');
+    const stopTrainingBtn = document.getElementById('stop-training-btn');
+    
+    if (startTrainingBtn) {
+        startTrainingBtn.addEventListener('click', startTraining);
+    }
+    
+    if (stopTrainingBtn) {
+        stopTrainingBtn.addEventListener('click', stopTraining);
+    }
+
+    // Generation form
+    const generateBtn = document.getElementById('generate-btn');
+    if (generateBtn) {
+        generateBtn.addEventListener('click', generateMusic);
+    }
+
+    // Tempo slider
     const tempoSlider = document.getElementById("tempo");
     if (tempoSlider) {
         tempoSlider.addEventListener("input", function() {
@@ -111,36 +135,37 @@ if (lyricsUploadArea) {
             }
         });
     }
+}
 
-    const genTempoSlider = document.getElementById("gen-tempo");
-    if (genTempoSlider) {
-        genTempoSlider.addEventListener("input", function() {
-            const genTempoValue = document.querySelector("#generate .tempo-value");
-            if (genTempoValue) {
-                genTempoValue.textContent = this.value + " BPM";
-            }
-        });
-    }
-
-    // Training form
-    const trainingForm = document.getElementById("training-form");
-    if (trainingForm) {
-        trainingForm.addEventListener("submit", handleStartTraining);
-    }
+// Tab switching
+function switchTab(tabName) {
+    currentTab = tabName;
     
-    const stopTrainingBtn = document.getElementById("stop-training-btn");
-    if (stopTrainingBtn) {
-        stopTrainingBtn.addEventListener("click", handleStopTraining);
-    }
-
-    // Generation form
-    const generateForm = document.getElementById("generate-form");
-    if (generateForm) {
-        generateForm.addEventListener("submit", handleGenerate);
+    // Update tab buttons
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(tabName).classList.add('active');
+    
+    // Load data for specific tabs
+    if (tabName === 'dashboard') {
+        loadDashboardData();
+    } else if (tabName === 'upload') {
+        // Reset upload form
+    } else if (tabName === 'training') {
+        checkTrainingStatus();
+    } else if (tabName === 'generation') {
+        loadGeneratedSongs();
     }
 }
 
-// File handling functions
+// Audio file handling
 function handleFileSelect(e) {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -172,7 +197,7 @@ function handleFileDrop(e) {
 }
 
 function isValidAudioFile(file) {
-    const validTypes = ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/flac', 'audio/m4a', 'audio/x-m4a'];
+    const validTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/m4a', 'audio/mp4'];
     const validExtensions = ['.mp3', '.wav', '.flac', '.m4a'];
     
     return validTypes.includes(file.type) || 
@@ -203,487 +228,33 @@ function removeSelectedFile() {
     const uploadArea = document.getElementById("file-upload-area");
     if (uploadArea) {
         uploadArea.innerHTML = `
-            <div class="upload-text">
-                <div class="upload-icon">📁</div>
-                <p>Drag and drop your audio file here</p>
-                <button type="button" class="browse-btn">Browse Files</button>
-            </div>
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag and drop your audio file here, or click to browse</p>
+            <input type="file" id="audio-file" name="audio_file" accept=".mp3,.wav,.flac,.m4a" hidden required>
+            <button type="button" class="browse-btn">Browse Files</button>
         `;
         
-        // Re-attach event listener to the new browse button
+        // Re-attach event listeners
+        const fileInput = document.getElementById("audio-file");
         const browseButton = document.querySelector("#file-upload-area .browse-btn");
+        
+        if (fileInput) {
+            fileInput.addEventListener("change", handleFileSelect);
+        }
+        
         if (browseButton) {
             browseButton.addEventListener("click", function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                const fileInput = document.getElementById("audio-file");
                 if (fileInput) {
                     fileInput.click();
                 }
             });
         }
     }
-    
-    // Clear the file input
-    const fileInput = document.getElementById("audio-file");
-    if (fileInput) {
-        fileInput.value = '';
-    }
 }
 
-// Upload form handler
-function handleUpload(e) {
-    e.preventDefault();
-    
-    // Check if audio file is selected
-    if (!selectedAudioFile) {
-        showToast('Please select an audio file', 'error');
-        return;
-    }
-    
-    // Check if lyrics file is selected
-    if (!selectedLyricsFile) {
-        showToast('Please select a lyrics .txt file', 'error');
-        return;
-    }
-    
-    // Get form values
-    const title = document.getElementById('title').value.trim();
-    const artist = document.getElementById('artist').value.trim();
-    const composer = document.getElementById('composer').value.trim();
-    const maqam = document.getElementById('maqam').value;
-    const style = document.getElementById('style').value;
-    const tempo = document.getElementById('tempo').value;
-    const emotion = document.getElementById('emotion').value;
-    const region = document.getElementById('region').value;
-    const poemBahr = document.getElementById('poem-bahr').value;
-    
-    // Validate required fields
-    if (!title || !artist || !maqam || !style || !tempo || !emotion || !region) {
-        showToast('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    // Validate tempo
-    const tempoInt = parseInt(tempo);
-    if (isNaN(tempoInt) || tempoInt < 60 || tempoInt > 180) {
-        showToast('Tempo must be between 60 and 180 BPM', 'error');
-        return;
-    }
-    
-    // Create FormData
-    const formData = new FormData();
-    formData.append('audio_file', selectedAudioFile);
-    formData.append('lyrics_file', selectedLyricsFile);  // Add lyrics file
-    formData.append('title', title);
-    formData.append('artist', artist);
-    formData.append('composer', composer);
-    formData.append('maqam', maqam);
-    formData.append('style', style);
-    formData.append('tempo', tempo);
-    formData.append('emotion', emotion);
-    formData.append('region', region);
-    formData.append('poem_bahr', poemBahr);
-    
-    // Show loading
-    showLoading('Uploading song...');
-    
-    // Disable upload button
-    const uploadBtn = document.getElementById('upload-btn');
-    if (uploadBtn) {
-        uploadBtn.disabled = true;
-        uploadBtn.textContent = 'Uploading...';
-    }
-    
-    // Send request
-    fetch('/api/songs/upload', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoading();
-        
-        if (data.success) {
-            showToast(data.message, 'success');
-            
-            // Reset form
-            document.getElementById('upload-form').reset();
-            
-            // Clear selected files
-            selectedAudioFile = null;
-            selectedLyricsFile = null;
-            
-            // Reset file upload areas
-            resetFileUploadArea();
-            resetLyricsUploadArea();
-            
-            // Reload data
-            loadSongs();
-            loadDashboardData();
-            
-            // Reset tempo display
-            const tempoValue = document.querySelector("#upload .tempo-value");
-            if (tempoValue) {
-                tempoValue.textContent = "120 BPM";
-            }
-        } else {
-            showToast(data.error || 'Upload failed', 'error');
-        }
-    })
-    .catch(error => {
-        hideLoading();
-        console.error('Upload error:', error);
-        showToast('Upload failed: ' + error.message, 'error');
-    })
-    .finally(() => {
-        // Re-enable upload button
-        if (uploadBtn) {
-            uploadBtn.disabled = false;
-            uploadBtn.textContent = 'Upload Song';
-        }
-    });
-}
-
-// Tab switching
-function switchTab(tabName) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Remove active class from all nav tabs
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Show selected tab
-    const selectedTab = document.getElementById(tabName);
-    if (selectedTab) {
-        selectedTab.classList.add('active');
-    }
-    
-    // Add active class to selected nav tab
-    const selectedNavTab = document.querySelector(`[data-tab="${tabName}"]`);
-    if (selectedNavTab) {
-        selectedNavTab.classList.add('active');
-    }
-    
-    currentTab = tabName;
-}
-
-// Dashboard functions
-function loadDashboardData() {
-    fetch(`${API_BASE}/dashboard/stats`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateDashboardStats(data.stats);
-            }
-        })
-        .catch(error => console.error('Error loading dashboard data:', error));
-}
-
-function updateDashboardStats(stats) {
-    const elements = {
-        'songs-count': stats.songs_count || 0,
-        'training-status': stats.is_training ? 'Training...' : 'Not Started',
-        'model-accuracy': (stats.model_accuracy || 0) + '%',
-        'generated-count': stats.generated_count || 0
-    };
-    
-    Object.entries(elements).forEach(([id, value]) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = value;
-        }
-    });
-}
-
-// Songs functions
-function loadSongs() {
-    fetch(`${API_BASE}/songs/list`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateSongsList(data.songs);
-            }
-        })
-        .catch(error => console.error('Error loading songs:', error));
-}
-
-function updateSongsList(songs) {
-    const songsList = document.getElementById('songs-list');
-    if (!songsList) return;
-    
-    if (songs.length === 0) {
-        songsList.innerHTML = '<p>No songs uploaded yet.</p>';
-        return;
-    }
-    
-    songsList.innerHTML = songs.map(song => `
-        <div class="song-item">
-            <div class="song-info">
-                <h4>${song.title}</h4>
-                <p>Artist: ${song.artist}</p>
-                <p>Maqam: ${song.maqam}</p>
-            </div>
-            <div class="song-actions">
-                <button onclick="playSong(${song.id})">Play</button>
-                <button onclick="deleteSong(${song.id})">Delete</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Training functions
-function handleStartTraining(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const trainingData = Object.fromEntries(formData.entries());
-    
-    fetch(`${API_BASE}/training/start`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(trainingData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Training started successfully!', 'success');
-            isTraining = true;
-            startTrainingMonitor();
-        } else {
-            showToast(data.error || 'Failed to start training', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Training start error:', error);
-        showToast('Failed to start training: ' + error.message, 'error');
-    });
-}
-
-function handleStopTraining() {
-    fetch(`${API_BASE}/training/stop`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Training stopped', 'info');
-            isTraining = false;
-            stopTrainingMonitor();
-        } else {
-            showToast(data.error || 'Failed to stop training', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Training stop error:', error);
-        showToast('Failed to stop training: ' + error.message, 'error');
-    });
-}
-
-function startTrainingMonitor() {
-    if (trainingInterval) {
-        clearInterval(trainingInterval);
-    }
-    
-    trainingInterval = setInterval(() => {
-        checkTrainingStatus();
-    }, 2000);
-}
-
-function stopTrainingMonitor() {
-    if (trainingInterval) {
-        clearInterval(trainingInterval);
-        trainingInterval = null;
-    }
-}
-
-function checkTrainingStatus() {
-    fetch(`${API_BASE}/training/status`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateTrainingStatus(data.status);
-                if (!data.status.is_training && isTraining) {
-                    isTraining = false;
-                    stopTrainingMonitor();
-                }
-            }
-        })
-        .catch(error => console.error('Error checking training status:', error));
-}
-
-function updateTrainingStatus(status) {
-    const elements = {
-        'training-progress': status.progress || 0,
-        'training-epoch': status.current_epoch || 0,
-        'training-loss': status.current_loss || 0
-    };
-    
-    Object.entries(elements).forEach(([id, value]) => {
-        const element = document.getElementById(id);
-        if (element) {
-            if (id === 'training-progress') {
-                element.style.width = value + '%';
-                element.textContent = value + '%';
-            } else {
-                element.textContent = value;
-            }
-        }
-    });
-}
-
-// Generation functions
-function loadGenerationPresets() {
-    // Load preset configurations for music generation
-    const presets = [
-        { name: 'Classical', maqam: 'hijaz', style: 'classical', tempo: 80 },
-        { name: 'Modern', maqam: 'bayati', style: 'modern', tempo: 120 },
-        { name: 'Folk', maqam: 'saba', style: 'folk', tempo: 100 }
-    ];
-    
-    const presetSelect = document.getElementById('generation-preset');
-    if (presetSelect) {
-        presetSelect.innerHTML = '<option value="">Custom</option>' +
-            presets.map(preset => 
-                `<option value="${preset.name.toLowerCase()}">${preset.name}</option>`
-            ).join('');
-    }
-}
-
-function handleGenerate(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const generationData = Object.fromEntries(formData.entries());
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Generating...';
-    submitBtn.disabled = true;
-    
-    fetch(`${API_BASE}/generation/generate`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(generationData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Music generated successfully!', 'success');
-            loadGeneratedSongs();
-        } else {
-            showToast(data.error || 'Generation failed', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Generation error:', error);
-        showToast('Generation failed: ' + error.message, 'error');
-    })
-    .finally(() => {
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    });
-}
-
-function loadGeneratedSongs() {
-    fetch(`${API_BASE}/generation/list`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateGeneratedSongsList(data.songs);
-            }
-        })
-        .catch(error => console.error('Error loading generated songs:', error));
-}
-
-function updateGeneratedSongsList(songs) {
-    const generatedList = document.getElementById('generated-songs-list');
-    if (!generatedList) return;
-    
-    if (songs.length === 0) {
-        generatedList.innerHTML = '<p>No songs generated yet.</p>';
-        return;
-    }
-    
-    generatedList.innerHTML = songs.map(song => `
-        <div class="generated-song-item">
-            <div class="song-info">
-                <h4>${song.title}</h4>
-                <p>Generated: ${new Date(song.created_at).toLocaleDateString()}</p>
-            </div>
-            <div class="song-actions">
-                <button onclick="playGeneratedSong('${song.audio_path}')">Play</button>
-                <button onclick="downloadSong('${song.audio_path}')">Download</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Utility functions
-function showToast(message, type = 'info') {
-    // Create toast element
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    
-    // Add to page
-    document.body.appendChild(toast);
-    
-    // Show toast
-    setTimeout(() => toast.classList.add('show'), 100);
-    
-    // Remove toast after 3 seconds
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => document.body.removeChild(toast), 300);
-    }, 3000);
-}
-
-function playSong(songId) {
-    // Implement song playback
-    console.log('Playing song:', songId);
-}
-
-function deleteSong(songId) {
-    if (confirm('Are you sure you want to delete this song?')) {
-        fetch(`${API_BASE}/songs/${songId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Song deleted successfully', 'success');
-                loadSongs();
-                loadDashboardData();
-            } else {
-                showToast(data.error || 'Failed to delete song', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Delete error:', error);
-            showToast('Failed to delete song: ' + error.message, 'error');
-        });
-    }
-}
-
-function playGeneratedSong(audioPath) {
-    // Implement generated song playback
-    console.log('Playing generated song:', audioPath);
-}
-
-function downloadSong(audioPath) {
-    // Implement song download
-    window.open(audioPath, '_blank');
-}
-// Lyrics file handling functions (ADD THESE AT THE END)
+// Lyrics file handling
 function handleLyricsFileSelect(e) {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -744,83 +315,8 @@ function removeSelectedLyricsFile() {
         lyricsUploadArea.innerHTML = `
             <i class="fas fa-file-text"></i>
             <p>Drag and drop your lyrics .txt file here, or click to browse</p>
-            <button type="button" class="browse-btn">Browse Lyrics File</button>
-        `;
-        
-        const lyricsBrowseButton = document.querySelector("#lyrics-upload-area .browse-btn");
-        if (lyricsBrowseButton) {
-            lyricsBrowseButton.addEventListener("click", function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const lyricsFileInput = document.getElementById("lyrics-file");
-                if (lyricsFileInput) {
-                    lyricsFileInput.click();
-                }
-            });
-        }
-    }
-    
-    const lyricsFileInput = document.getElementById("lyrics-file");
-    if (lyricsFileInput) {
-        lyricsFileInput.value = '';
-    }
-}
-// Helper function to reset audio file upload area
-function resetFileUploadArea() {
-    const uploadArea = document.getElementById("file-upload-area");
-    if (uploadArea) {
-        uploadArea.innerHTML = `
-            <i class="fas fa-cloud-upload-alt"></i>
-            <p>Drag and drop your audio file here, or click to browse</p>
-            <input type="file" id="audio-file" name="audio_file" accept=".mp3,.wav,.flac,.m4a" hidden required>
-            <button type="button" class="browse-btn">
-                Browse Files
-            </button>
-        `;
-        
-        // Re-attach event listeners
-        const fileInput = document.getElementById("audio-file");
-        const browseButton = document.querySelector("#file-upload-area .browse-btn");
-        
-        if (fileInput) {
-            fileInput.addEventListener("change", handleFileSelect);
-        }
-        
-        if (browseButton) {
-            browseButton.addEventListener("click", function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (fileInput) {
-                    fileInput.click();
-                }
-            });
-        }
-        
-        if (uploadArea) {
-            uploadArea.addEventListener("dragover", handleDragOver);
-            uploadArea.addEventListener("drop", handleFileDrop);
-            uploadArea.addEventListener("click", function(e) {
-                if (e.target === uploadArea || e.target.classList.contains('upload-text')) {
-                    if (fileInput) {
-                        fileInput.click();
-                    }
-                }
-            });
-        }
-    }
-}
-
-// Helper function to reset lyrics file upload area
-function resetLyricsUploadArea() {
-    const lyricsUploadArea = document.getElementById("lyrics-upload-area");
-    if (lyricsUploadArea) {
-        lyricsUploadArea.innerHTML = `
-            <i class="fas fa-file-text"></i>
-            <p>Drag and drop your lyrics .txt file here, or click to browse</p>
             <input type="file" id="lyrics-file" name="lyrics_file" accept=".txt" hidden required>
-            <button type="button" class="browse-btn">
-                Browse Lyrics File
-            </button>
+            <button type="button" class="browse-btn">Browse Lyrics File</button>
         `;
         
         // Re-attach event listeners
@@ -840,87 +336,405 @@ function resetLyricsUploadArea() {
                 }
             });
         }
-        
-        if (lyricsUploadArea) {
-            lyricsUploadArea.addEventListener("dragover", handleLyricsDragOver);
-            lyricsUploadArea.addEventListener("drop", handleLyricsFileDrop);
-            lyricsUploadArea.addEventListener("click", function(e) {
-                if (e.target === lyricsUploadArea || e.target.classList.contains('upload-text')) {
-                    if (lyricsFileInput) {
-                        lyricsFileInput.click();
-                    }
-                }
-            });
-        }
     }
 }
-// Simple upload button fix - add this at the very end
-document.addEventListener('DOMContentLoaded', function() {
+
+// Upload handling
+function handleUpload() {
+    console.log('handleUpload called');
+    
+    // Check if audio file is selected
+    if (!selectedAudioFile) {
+        alert('Please select an audio file');
+        return;
+    }
+    
+    // Check if lyrics file is selected
+    if (!selectedLyricsFile) {
+        alert('Please select a lyrics .txt file');
+        return;
+    }
+    
+    // Get form values
+    const title = document.getElementById('title').value.trim();
+    const artist = document.getElementById('artist').value.trim();
+    const composer = document.getElementById('composer').value.trim();
+    const maqam = document.getElementById('maqam').value;
+    const style = document.getElementById('style').value;
+    const tempo = document.getElementById('tempo').value;
+    const emotion = document.getElementById('emotion').value;
+    const region = document.getElementById('region').value;
+    const poemBahr = document.getElementById('poem-bahr').value;
+    
+    // Validate required fields
+    if (!title || !artist || !maqam || !style || !tempo || !emotion || !region) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    // Validate tempo
+    const tempoInt = parseInt(tempo);
+    if (isNaN(tempoInt) || tempoInt < 60 || tempoInt > 180) {
+        alert('Tempo must be between 60 and 180 BPM');
+        return;
+    }
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('audio_file', selectedAudioFile);
+    formData.append('lyrics_file', selectedLyricsFile);
+    formData.append('title', title);
+    formData.append('artist', artist);
+    formData.append('composer', composer);
+    formData.append('maqam', maqam);
+    formData.append('style', style);
+    formData.append('tempo', tempo);
+    formData.append('emotion', emotion);
+    formData.append('region', region);
+    formData.append('poem_bahr', poemBahr);
+    
+    // Disable upload button
     const uploadBtn = document.getElementById('upload-btn');
     if (uploadBtn) {
-        uploadBtn.addEventListener('click', function(e) {
-            e.preventDefault();
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
+    }
+    
+    console.log('Sending upload request...');
+    
+    // Send request
+    fetch('/api/songs/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('Upload response received:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Upload response data:', data);
+        
+        if (data.success) {
+            alert('Song uploaded successfully!');
             
-            // Check if audio file is selected
-            if (!selectedAudioFile) {
-                alert('Please select an audio file');
-                return;
+            // Reset form
+            document.getElementById('title').value = '';
+            document.getElementById('artist').value = '';
+            document.getElementById('composer').value = '';
+            document.getElementById('maqam').selectedIndex = 0;
+            document.getElementById('style').selectedIndex = 0;
+            document.getElementById('tempo').value = 120;
+            document.getElementById('emotion').selectedIndex = 0;
+            document.getElementById('region').selectedIndex = 0;
+            document.getElementById('poem-bahr').selectedIndex = 0;
+            
+            // Clear selected files
+            selectedAudioFile = null;
+            selectedLyricsFile = null;
+            
+            // Reset file upload areas
+            removeSelectedFile();
+            removeSelectedLyricsFile();
+            
+            // Reload data
+            loadSongs();
+            loadDashboardData();
+        } else {
+            alert('Upload failed: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        alert('Upload failed: ' + error.message);
+    })
+    .finally(() => {
+        // Re-enable upload button
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload Song';
+        }
+    });
+}
+
+// Dashboard functions
+function loadDashboardData() {
+    fetch(`${API_BASE}/dashboard/stats`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateDashboardStats(data.stats);
             }
-            
-            // Check if lyrics file is selected
-            if (!selectedLyricsFile) {
-                alert('Please select a lyrics .txt file');
-                return;
+        })
+        .catch(error => {
+            console.error('Error loading dashboard data:', error);
+        });
+}
+
+function updateDashboardStats(stats) {
+    // Update stats cards
+    const elements = {
+        'total-songs': stats.songs_count || 0,
+        'total-size': `${stats.total_size_mb || 0} MB`,
+        'training-sessions': stats.training_sessions || 0,
+        'generated-songs': stats.generated_count || 0
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    });
+}
+
+// Songs functions
+function loadSongs() {
+    fetch(`${API_BASE}/songs/list`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displaySongs(data.songs);
             }
-            
-            // Get form values
-            const title = document.getElementById('title').value.trim();
-            const artist = document.getElementById('artist').value.trim();
-            
-            if (!title || !artist) {
-                alert('Please fill in title and artist');
-                return;
+        })
+        .catch(error => {
+            console.error('Error loading songs:', error);
+        });
+}
+
+function displaySongs(songs) {
+    const container = document.getElementById('songs-list');
+    if (!container) return;
+    
+    if (songs && songs.length > 0) {
+        container.innerHTML = songs.map(song => `
+            <div class="song-card">
+                <div class="song-info">
+                    <h3>${song.title}</h3>
+                    <p><strong>Artist:</strong> ${song.artist}</p>
+                    <p><strong>Maqam:</strong> ${song.maqam}</p>
+                    <p><strong>Style:</strong> ${song.style}</p>
+                    <p><strong>Tempo:</strong> ${song.tempo} BPM</p>
+                    <p><strong>Size:</strong> ${song.file_size_mb} MB</p>
+                </div>
+                <div class="song-actions">
+                    <button onclick="deleteSong(${song.id})" class="delete-btn">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        container.innerHTML = '<p>No songs uploaded yet. Upload your first song above!</p>';
+    }
+}
+
+function deleteSong(songId) {
+    if (confirm('Are you sure you want to delete this song?')) {
+        fetch(`${API_BASE}/songs/${songId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Song deleted successfully');
+                loadSongs();
+                loadDashboardData();
+            } else {
+                alert('Delete failed: ' + data.error);
             }
-            
-            // Create FormData
-            const formData = new FormData();
-            formData.append('audio_file', selectedAudioFile);
-            formData.append('lyrics_file', selectedLyricsFile);
-            formData.append('title', title);
-            formData.append('artist', artist);
-            formData.append('composer', document.getElementById('composer').value);
-            formData.append('maqam', document.getElementById('maqam').value);
-            formData.append('style', document.getElementById('style').value);
-            formData.append('tempo', document.getElementById('tempo').value);
-            formData.append('emotion', document.getElementById('emotion').value);
-            formData.append('region', document.getElementById('region').value);
-            formData.append('poem_bahr', document.getElementById('poem-bahr').value);
-            
-            // Disable button
-            uploadBtn.disabled = true;
-            uploadBtn.textContent = 'Uploading...';
-            
-            // Send request
-            fetch('/api/songs/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Song uploaded successfully!');
-                    location.reload(); // Simple refresh
-                } else {
-                    alert('Upload failed: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('Upload failed: ' + error.message);
-            })
-            .finally(() => {
-                uploadBtn.disabled = false;
-                uploadBtn.textContent = 'Upload Song';
-            });
+        })
+        .catch(error => {
+            alert('Delete failed: ' + error.message);
         });
     }
-});
+}
+
+// Training functions
+function checkTrainingStatus() {
+    fetch(`${API_BASE}/training/status`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateTrainingStatus(data.status);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking training status:', error);
+        });
+}
+
+function updateTrainingStatus(status) {
+    const progressBar = document.getElementById('training-progress');
+    const statusText = document.getElementById('training-status');
+    const startBtn = document.getElementById('start-training-btn');
+    const stopBtn = document.getElementById('stop-training-btn');
+    
+    if (progressBar) {
+        progressBar.style.width = status.progress + '%';
+    }
+    
+    if (statusText) {
+        statusText.textContent = `Status: ${status.status} (${status.progress}%)`;
+    }
+    
+    if (startBtn) {
+        startBtn.disabled = status.is_training;
+    }
+    
+    if (stopBtn) {
+        stopBtn.disabled = !status.is_training;
+    }
+    
+    if (status.is_training) {
+        setTimeout(checkTrainingStatus, 2000);
+    }
+}
+
+function startTraining() {
+    fetch(`${API_BASE}/training/start`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            epochs: 100,
+            learning_rate: 0.001,
+            batch_size: 32
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Training started successfully!');
+            checkTrainingStatus();
+        } else {
+            alert('Training failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Training failed: ' + error.message);
+    });
+}
+
+function stopTraining() {
+    fetch(`${API_BASE}/training/stop`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Training stopped successfully!');
+            checkTrainingStatus();
+        } else {
+            alert('Stop failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Stop failed: ' + error.message);
+    });
+}
+
+// Generation functions
+function generateMusic() {
+    const formData = new FormData();
+    
+    // Check if lyrics file is provided
+    const lyricsFileInput = document.getElementById('generation-lyrics-file');
+    if (lyricsFileInput && lyricsFileInput.files.length > 0) {
+        formData.append('lyrics_file', lyricsFileInput.files[0]);
+    } else {
+        alert('Please select a lyrics file for generation');
+        return;
+    }
+    
+    // Get other form values
+    const maqam = document.getElementById('generation-maqam').value;
+    const style = document.getElementById('generation-style').value;
+    const tempo = document.getElementById('generation-tempo').value;
+    const emotion = document.getElementById('generation-emotion').value;
+    const region = document.getElementById('generation-region').value;
+    
+    formData.append('maqam', maqam);
+    formData.append('style', style);
+    formData.append('tempo', tempo);
+    formData.append('emotion', emotion);
+    formData.append('region', region);
+    
+    fetch(`${API_BASE}/generation/generate`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Song generated successfully!');
+            loadGeneratedSongs();
+        } else {
+            alert('Generation failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Generation failed: ' + error.message);
+    });
+}
+
+function loadGeneratedSongs() {
+    fetch(`${API_BASE}/generation/list`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayGeneratedSongs(data.songs);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading generated songs:', error);
+        });
+}
+
+function displayGeneratedSongs(songs) {
+    const container = document.getElementById('generated-songs-list');
+    if (!container) return;
+    
+    if (songs && songs.length > 0) {
+        container.innerHTML = songs.map(song => `
+            <div class="song-card">
+                <div class="song-info">
+                    <h3>${song.title}</h3>
+                    <p><strong>Maqam:</strong> ${song.maqam}</p>
+                    <p><strong>Style:</strong> ${song.style}</p>
+                    <p><strong>Tempo:</strong> ${song.tempo} BPM</p>
+                    <p><strong>Emotion:</strong> ${song.emotion}</p>
+                </div>
+                <div class="song-actions">
+                    <button onclick="deleteGeneratedSong(${song.id})" class="delete-btn">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        container.innerHTML = '<p>No songs generated yet. Create your first AI-generated song above!</p>';
+    }
+}
+
+function deleteGeneratedSong(songId) {
+    if (confirm('Are you sure you want to delete this generated song?')) {
+        fetch(`${API_BASE}/generation/${songId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Generated song deleted successfully');
+                loadGeneratedSongs();
+            } else {
+                alert('Delete failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Delete failed: ' + error.message);
+        });
+    }
+}
+
+// Utility functions
+function showToast(message, type = 'info') {
+    // Simple alert for now
+    alert(message);
+}
