@@ -199,20 +199,50 @@ def list_songs():
 @app.route('/api/songs/upload', methods=['POST'])
 def upload_song():
     try:
+        print("Upload request received")  # Debug log
+        
+        # Validate audio file
         if 'audio_file' not in request.files:
+            print("No audio file in request")
             return jsonify({'success': False, 'error': 'No audio file provided'}), 400
         
-        file = request.files['audio_file']
-        if file.filename == '':
-            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        audio_file = request.files['audio_file']
+        if audio_file.filename == '':
+            print("Empty audio filename")
+            return jsonify({'success': False, 'error': 'No audio file selected'}), 400
         
-        if not allowed_file(file.filename):
-            return jsonify({'success': False, 'error': 'Invalid file type. Please upload MP3, WAV, FLAC, or M4A files.'}), 400
+        if not allowed_file(audio_file.filename):
+            print(f"Invalid audio file type: {audio_file.filename}")
+            return jsonify({'success': False, 'error': 'Invalid audio file type. Please upload MP3, WAV, FLAC, or M4A files.'}), 400
+        
+        # Validate lyrics file
+        if 'lyrics_file' not in request.files:
+            print("No lyrics file in request")
+            return jsonify({'success': False, 'error': 'No lyrics file provided'}), 400
+        
+        lyrics_file = request.files['lyrics_file']
+        if lyrics_file.filename == '':
+            print("Empty lyrics filename")
+            return jsonify({'success': False, 'error': 'No lyrics file selected'}), 400
+        
+        if not lyrics_file.filename.lower().endswith('.txt'):
+            print(f"Invalid lyrics file type: {lyrics_file.filename}")
+            return jsonify({'success': False, 'error': 'Invalid lyrics file type. Please upload a .txt file.'}), 400
+        
+        # Read lyrics from file
+        try:
+            lyrics_content = lyrics_file.read().decode('utf-8')
+            if not lyrics_content.strip():
+                print("Empty lyrics file")
+                return jsonify({'success': False, 'error': 'Lyrics file is empty'}), 400
+            print(f"Lyrics content length: {len(lyrics_content)}")
+        except UnicodeDecodeError as e:
+            print(f"Lyrics file decode error: {e}")
+            return jsonify({'success': False, 'error': 'Unable to read lyrics file. Please ensure it\'s a valid UTF-8 text file.'}), 400
         
         # Get form data
         title = request.form.get('title', '').strip()
         artist = request.form.get('artist', '').strip()
-        lyrics = request.form.get('lyrics', '').strip()
         maqam = request.form.get('maqam', '').strip()
         style = request.form.get('style', '').strip()
         tempo = request.form.get('tempo', '').strip()
@@ -221,14 +251,22 @@ def upload_song():
         composer = request.form.get('composer', '').strip()
         poem_bahr = request.form.get('poem_bahr', '').strip()
         
+        print(f"Form data - Title: {title}, Artist: {artist}, Maqam: {maqam}")
+        
         # Validate required fields
         required_fields = {
-            'title': title, 'artist': artist, 'lyrics': lyrics, 'maqam': maqam,
-            'style': style, 'tempo': tempo, 'emotion': emotion, 'region': region
+            'title': title,
+            'artist': artist,
+            'maqam': maqam,
+            'style': style,
+            'tempo': tempo,
+            'emotion': emotion,
+            'region': region
         }
         
         missing_fields = [field for field, value in required_fields.items() if not value]
         if missing_fields:
+            print(f"Missing fields: {missing_fields}")
             return jsonify({
                 'success': False,
                 'error': f'Missing required fields: {", ".join(missing_fields)}'
@@ -238,39 +276,66 @@ def upload_song():
         try:
             tempo_int = int(tempo)
             if tempo_int < 60 or tempo_int > 180:
+                print(f"Invalid tempo: {tempo_int}")
                 return jsonify({'success': False, 'error': 'Tempo must be between 60 and 180 BPM'}), 400
         except ValueError:
+            print(f"Tempo not a number: {tempo}")
             return jsonify({'success': False, 'error': 'Invalid tempo value'}), 400
         
-        # Get file info
-        filename = secure_filename(file.filename)
-        file_data = file.read()
-        file_size = len(file_data)
+        # Get audio file info
+        audio_filename = secure_filename(audio_file.filename)
+        audio_data = audio_file.read()
+        audio_file_size = len(audio_data)
+        
+        print(f"Audio file: {audio_filename}, Size: {audio_file_size} bytes")
         
         # Create song record
         song = Song(
-            title=title, artist=artist, lyrics=lyrics, maqam=maqam, style=style,
-            tempo=tempo_int, emotion=emotion, region=region,
+            title=title,
+            artist=artist,
+            lyrics=lyrics_content,  # Store lyrics content from file
+            maqam=maqam,
+            style=style,
+            tempo=tempo_int,
+            emotion=emotion,
+            region=region,
             composer=composer if composer else None,
             poem_bahr=poem_bahr if poem_bahr else None,
-            filename=filename,
-            file_type=filename.rsplit('.', 1)[1].lower() if '.' in filename else 'mp3',
-            file_size=file_size, created_at=datetime.utcnow()
+            filename=audio_filename,
+            file_type=audio_filename.rsplit('.', 1)[1].lower() if '.' in audio_filename else 'mp3',
+            file_size=audio_file_size,
+            created_at=datetime.utcnow()
         )
         
-        db.session.add(song)
-        db.session.commit()
+        print("Created song object, attempting to save to database...")
         
-        return jsonify({
-            'success': True,
-            'message': f'Song "{title}" uploaded successfully!',
-            'song_id': song.id,
-            'file_size': f'{file_size / (1024*1024):.2f} MB'
-        })
+        # Save to database
+        try:
+            db.session.add(song)
+            db.session.commit()
+            
+            print(f"Song saved successfully with ID: {song.id}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Song "{title}" uploaded successfully!',
+                'song_id': song.id,
+                'audio_file_size': f'{audio_file_size / (1024*1024):.2f} MB',
+                'lyrics_preview': lyrics_content[:100] + '...' if len(lyrics_content) > 100 else lyrics_content
+            })
+            
+        except Exception as db_error:
+            print(f"Database error: {db_error}")
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Failed to save song to database: {str(db_error)}'
+            }), 500
         
     except Exception as e:
-        db.session.rollback()
+        print(f"Upload error: {e}")
         return jsonify({'success': False, 'error': f'Upload failed: {str(e)}'}), 500
+
 
 @app.route('/api/songs/<int:song_id>', methods=['DELETE'])
 def delete_song(song_id):
