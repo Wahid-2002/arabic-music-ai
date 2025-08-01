@@ -32,7 +32,7 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Song model - SIMPLE and WORKING
+# Song model
 class Song(db.Model):
     __tablename__ = 'songs'
     
@@ -157,123 +157,103 @@ with app.app_context():
     except Exception as e:
         print(f"❌ Database setup error: {e}")
 
-# UPLOAD ENDPOINT - WORKING VERSION
+# UPLOAD ENDPOINT
 @app.route('/api/songs/upload', methods=['POST'])
 def upload_song():
     try:
         print("=== UPLOAD REQUEST RECEIVED ===")
-        print(f"Files in request: {list(request.files.keys())}")
-        print(f"Form data: {dict(request.form)}")
+        print(f"Files: {list(request.files.keys())}")
+        print(f"Form: {dict(request.form)}")
         
-        # Check audio file
-        if 'audio_file' not in request.files:
-            print("❌ No audio_file in request")
-            return jsonify({'success': False, 'error': 'No audio file provided'}), 400
+        # Get files - be flexible with names
+        audio_file = None
+        lyrics_file = None
         
-        audio_file = request.files['audio_file']
-        print(f"Audio file: {audio_file.filename}")
+        for key in request.files:
+            file = request.files[key]
+            if file.filename:
+                if key in ['audio_file', 'audioFile'] or any(ext in file.filename.lower() for ext in ['.mp3', '.wav', '.flac', '.m4a']):
+                    audio_file = file
+                    print(f"✅ Audio file found: {file.filename}")
+                elif key in ['lyrics_file', 'lyricsFile'] or file.filename.lower().endswith('.txt'):
+                    lyrics_file = file
+                    print(f"✅ Lyrics file found: {file.filename}")
         
-        if audio_file.filename == '':
-            print("❌ Empty audio filename")
-            return jsonify({'success': False, 'error': 'No audio file selected'}), 400
-        
-        # Check lyrics file
-        if 'lyrics_file' not in request.files:
-            print("❌ No lyrics_file in request")
-            return jsonify({'success': False, 'error': 'No lyrics file provided'}), 400
-        
-        lyrics_file = request.files['lyrics_file']
-        print(f"Lyrics file: {lyrics_file.filename}")
-        
-        if lyrics_file.filename == '':
-            print("❌ Empty lyrics filename")
-            return jsonify({'success': False, 'error': 'No lyrics file selected'}), 400
+        if not audio_file:
+            print("❌ No audio file found")
+            return jsonify({'success': False, 'error': 'No audio file found'}), 400
+            
+        if not lyrics_file:
+            print("❌ No lyrics file found")
+            return jsonify({'success': False, 'error': 'No lyrics file found'}), 400
         
         # Read lyrics
-        try:
-            lyrics_content = lyrics_file.read().decode('utf-8')
-            print(f"✅ Lyrics read successfully, length: {len(lyrics_content)}")
-        except Exception as e:
-            print(f"❌ Error reading lyrics: {e}")
-            return jsonify({'success': False, 'error': 'Could not read lyrics file'}), 400
+        lyrics_content = lyrics_file.read().decode('utf-8', errors='ignore')
+        print(f"✅ Lyrics length: {len(lyrics_content)}")
         
-        # Get form data
-        title = request.form.get('title', '').strip()
-        artist = request.form.get('artist', '').strip()
-        maqam = request.form.get('maqam', '').strip()
-        style = request.form.get('style', '').strip()
-        tempo = request.form.get('tempo', '').strip()
-        emotion = request.form.get('emotion', '').strip()
-        region = request.form.get('region', '').strip()
+        # Get form data with defaults
+        title = request.form.get('title', 'Untitled Song').strip()
+        artist = request.form.get('artist', 'Unknown Artist').strip()
+        maqam = request.form.get('maqam', 'unknown')
+        style = request.form.get('style', 'modern')
+        tempo = request.form.get('tempo', '120')
+        emotion = request.form.get('emotion', 'neutral')
+        region = request.form.get('region', 'mixed')
         composer = request.form.get('composer', '').strip()
         poem_bahr = request.form.get('poem_bahr', '').strip()
         
-        print(f"Form data - Title: '{title}', Artist: '{artist}', Maqam: '{maqam}'")
+        print(f"✅ Title: {title}, Artist: {artist}")
         
-        # Basic validation
-        if not title or not artist:
-            print("❌ Missing title or artist")
-            return jsonify({'success': False, 'error': 'Title and Artist are required'}), 400
-        
-        # Convert tempo
+        # Convert tempo safely
         try:
-            tempo_int = int(tempo) if tempo else 120
+            tempo_int = int(tempo)
         except:
             tempo_int = 120
         
         # Get file info
         audio_data = audio_file.read()
         file_size = len(audio_data)
-        filename = secure_filename(audio_file.filename) if audio_file.filename else 'unknown.mp3'
+        filename = secure_filename(audio_file.filename)
         
-        print(f"Creating song object...")
+        print(f"✅ Creating song object...")
         
-        # Create song
+        # Create and save song
         song = Song(
             title=title,
             artist=artist,
             lyrics=lyrics_content,
-            maqam=maqam or 'unknown',
-            style=style or 'modern',
+            maqam=maqam,
+            style=style,
             tempo=tempo_int,
-            emotion=emotion or 'neutral',
-            region=region or 'mixed',
-            composer=composer,
-            poem_bahr=poem_bahr,
+            emotion=emotion,
+            region=region,
+            composer=composer or None,
+            poem_bahr=poem_bahr or None,
             filename=filename,
             file_size=file_size,
             file_type=filename.split('.')[-1] if '.' in filename else 'mp3',
             created_at=datetime.utcnow()
         )
         
-        print(f"Saving to database...")
-        
-        # Save to database
         db.session.add(song)
         db.session.commit()
         
-        print(f"✅ Song saved successfully with ID: {song.id}")
-        
-        # Verify it was saved
-        saved_song = Song.query.get(song.id)
-        if saved_song:
-            print(f"✅ Verification: Song exists in database")
-        else:
-            print(f"❌ Verification: Song NOT found in database")
+        print(f"✅ SUCCESS! Song saved with ID: {song.id}")
         
         return jsonify({
             'success': True,
             'message': f'Song "{title}" uploaded successfully!',
-            'song_id': song.id,
-            'file_size': f'{file_size / (1024*1024):.2f} MB'
+            'song_id': song.id
         })
         
     except Exception as e:
-        print(f"❌ Upload error: {e}")
+        print(f"❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
-        return jsonify({'success': False, 'error': f'Upload failed: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-# LIST SONGS ENDPOINT - WORKING VERSION
+# LIST SONGS ENDPOINT
 @app.route('/api/songs/list')
 def list_songs():
     try:
@@ -527,4 +507,4 @@ def serve(path):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)  # Enable debug mode
+    app.run(host='0.0.0.0', port=port, debug=True)
