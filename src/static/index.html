@@ -30,7 +30,7 @@
                         <i class="fas fa-brain"></i>
                         Train Model
                     </button>
-                    <button class="nav-tab" data-tab="generate">
+                    <button class="nav-tab" data-tab="generation">
                         <i class="fas fa-magic"></i>
                         Generate Music
                     </button>
@@ -40,143 +40,125 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Dashboard Tab -->
-            <div class="tab-content active" id="dashboard">
-                <div class="dashboard-grid">
-                    <div class="stats-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-music"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="total-songs">0</h3>
-                            <p>Songs Uploaded</p>
-                        </div>
+            <div class="content-wrapper">
+                <!-- Dashboard Tab -->
+                <div id="dashboard" class="tab-content active">
+                    <div class="dashboard-header">
+                        <h2>🎵 Dashboard</h2>
+                        <p>Welcome to Arabic Music AI Generator</p>
                     </div>
-                    
-                    <div class="stats-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-brain"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="training-status">Not Started</h3>
-                            <p>Training Status</p>
-                        </div>
-                    </div>
-                    
-                    <div class="stats-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="model-accuracy">0%</h3>
-                            <p>Model Accuracy</p>
-                        </div>
-                    </div>
-                    
-                    <div class="stats-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-magic"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 id="generated-count">0</h3>
-                            <p>Songs Generated</p>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="dashboard-sections">
-                    <div class="section">
-                        <h2>Recent Activity</h2>
-                        <div class="activity-list" id="recent-activity">
-                            <div class="activity-item">
-                                <i class="fas fa-info-circle"></i>
-                                <span>Welcome to Arabic Music AI Generator!</span>
-                                <small>Start by uploading some songs</small>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">🎵</div>
+                            <div class="stat-content">
+                                <h3 id="total-songs">0</h3>
+                                <p>Total Songs</p>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="section">
-                        <h2>Dataset Overview</h2>
-                        <div class="dataset-overview" id="dataset-overview">
-                            <div class="chart-placeholder">
-                                <i class="fas fa-chart-pie"></i>
-                                <p>Upload songs to see dataset distribution</p>
+                        <div class="stat-card">
+                            <div class="stat-icon">💾</div>
+                            <div class="stat-content">
+                                <h3 id="total-size">0 MB</h3>
+                                <p>Total Size</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🧠</div>
+                            <div class="stat-content">
+                                <h3 id="training-sessions">0</h3>
+                                <p>Training Sessions</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✨</div>
+                            <div class="stat-content">
+                                <h3 id="generated-songs">0</h3>
+                                <p>Generated Songs</p>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Upload Tab -->
-            <div class="tab-content" id="upload">
-                <div class="upload-container">
+                <!-- Upload Tab -->
+                <div id="upload" class="tab-content">
                     <div class="upload-section">
-                        <h2>Upload New Song</h2>
+                        <h2>📤 Upload Songs</h2>
+                        
                         <form id="upload-form" class="upload-form">
-                            <div class="file-upload-area" id="file-upload-area">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                <p>Drag and drop your audio file here, or click to browse</p>
-                                <input type="file" id="audio-file" name="audio_file" accept=".wav,.mp3,.flac,.m4a" hidden>                                <button type="button" class="browse-btn">
-                                    Browse Files
-                                </button>                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="audio-file">Audio File *</label>
+                                    <div class="file-upload-area" id="file-upload-area">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <p>Drag and drop your audio file here, or click to browse</p>
+                                        <input type="file" id="audio-file" name="audio_file" accept=".mp3,.wav,.flac,.m4a" hidden required>
+                                        <button type="button" class="browse-btn">Browse Files</button>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <div class="form-grid">
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="lyrics-file">Arabic Lyrics File (.txt ) *</label>
+                                    <div class="file-upload-area" id="lyrics-upload-area">
+                                        <i class="fas fa-file-text"></i>
+                                        <p>Drag and drop your lyrics .txt file here, or click to browse</p>
+                                        <input type="file" id="lyrics-file" name="lyrics_file" accept=".txt" hidden required>
+                                        <button type="button" class="browse-btn">Browse Lyrics File</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="title">Song Title *</label>
-                                    <input type="text" id="title" name="title" required>
+                                    <input type="text" id="title" name="title" placeholder="Enter song title" required>
                                 </div>
-
                                 <div class="form-group">
                                     <label for="artist">Artist *</label>
-                                    <input type="text" id="artist" name="artist" required>
+                                    <input type="text" id="artist" name="artist" placeholder="Enter artist name" required>
                                 </div>
+                            </div>
 
-                                <div class="form-group full-width">
-    <label for="lyrics-file">Arabic Lyrics File (.txt) *</label>
-    <div class="file-upload-area" id="lyrics-upload-area">
-        <i class="fas fa-file-text"></i>
-        <p>Drag and drop your lyrics .txt file here, or click to browse</p>
-        <input type="file" id="lyrics-file" name="lyrics_file" accept=".txt" hidden required>
-        <button type="button" class="browse-btn">
-            Browse Lyrics File
-        </button>
-    </div>
-</div>
-
-
+                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="maqam">Maqam *</label>
                                     <select id="maqam" name="maqam" required>
                                         <option value="">Select Maqam</option>
-                                        <option value="unknown">Unknown</option>
                                         <option value="hijaz">Hijaz</option>
                                         <option value="bayati">Bayati</option>
-                                        <option value="saba">Saba</option>
                                         <option value="rast">Rast</option>
-                                        <option value="kurd">Kurd</option>
                                         <option value="nahawand">Nahawand</option>
+                                        <option value="saba">Saba</option>
+                                        <option value="kurd">Kurd</option>
                                         <option value="ajam">Ajam</option>
+                                        <option value="sikah">Sikah</option>
+                                        <option value="unknown">Unknown</option>
                                     </select>
                                 </div>
-
                                 <div class="form-group">
                                     <label for="style">Style *</label>
                                     <select id="style" name="style" required>
                                         <option value="">Select Style</option>
                                         <option value="classical">Classical</option>
-                                        <option value="folk">Folk</option>
                                         <option value="modern">Modern</option>
-                                        <option value="traditional">Traditional</option>
+                                        <option value="folk">Folk</option>
+                                        <option value="religious">Religious</option>
+                                        <option value="pop">Pop</option>
+                                        <option value="fusion">Fusion</option>
                                     </select>
                                 </div>
+                            </div>
 
+                            <div class="form-row">
                                 <div class="form-group">
-                                    <label for="tempo">Tempo (BPM ) *</label>
-                                    <input type="range" id="tempo" name="tempo" min="60" max="180" value="120" required>
-                                    <span class="tempo-value">120 BPM</span>
+                                    <label for="tempo">Tempo (BPM) *</label>
+                                    <div class="tempo-container">
+                                        <input type="range" id="tempo" name="tempo" min="60" max="180" value="120" class="tempo-slider">
+                                        <span class="tempo-value">120 BPM</span>
+                                    </div>
                                 </div>
-
                                 <div class="form-group">
                                     <label for="emotion">Emotion *</label>
                                     <select id="emotion" name="emotion" required>
@@ -184,13 +166,15 @@
                                         <option value="happy">Happy</option>
                                         <option value="sad">Sad</option>
                                         <option value="romantic">Romantic</option>
-                                        <option value="dramatic">Dramatic</option>
-                                        <option value="melancholic">Melancholic</option>
                                         <option value="energetic">Energetic</option>
                                         <option value="peaceful">Peaceful</option>
+                                        <option value="dramatic">Dramatic</option>
+                                        <option value="nostalgic">Nostalgic</option>
                                     </select>
                                 </div>
+                            </div>
 
+                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="region">Region *</label>
                                     <select id="region" name="region" required>
@@ -199,22 +183,25 @@
                                         <option value="lebanese">Lebanese</option>
                                         <option value="syrian">Syrian</option>
                                         <option value="iraqi">Iraqi</option>
-                                        <option value="moroccan">Moroccan</option>
-                                        <option value="tunisian">Tunisian</option>
                                         <option value="gulf">Gulf</option>
-                                        <option value="sudan">Sudan</option>
+                                        <option value="maghrebi">Maghrebi</option>
+                                        <option value="sudanese">Sudanese</option>
+                                        <option value="palestinian">Palestinian</option>
+                                        <option value="jordanian">Jordanian</option>
+                                        <option value="mixed">Mixed</option>
                                     </select>
                                 </div>
-
                                 <div class="form-group">
                                     <label for="composer">Composer</label>
-                                    <input type="text" id="composer" name="composer">
+                                    <input type="text" id="composer" name="composer" placeholder="Enter composer name (optional)">
                                 </div>
+                            </div>
 
+                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="poem-bahr">Poem Bahr</label>
                                     <select id="poem-bahr" name="poem_bahr">
-                                        <option value="">Select Bahr</option>
+                                        <option value="">Select Poem Bahr (optional)</option>
                                         <option value="baseet">Baseet</option>
                                         <option value="kamel">Kamel</option>
                                         <option value="wafer">Wafer</option>
@@ -226,175 +213,140 @@
                                 </div>
                             </div>
 
-                            <button type="submit" class="upload-btn">
+                            <button type="submit" id="upload-btn" class="upload-button">
                                 <i class="fas fa-upload"></i>
                                 Upload Song
                             </button>
                         </form>
                     </div>
 
-                    <div class="songs-list-section">
-                        <h2>Uploaded Songs</h2>
+                    <!-- Songs Library Section -->
+                    <div class="songs-library-section">
+                        <h2>🎵 Uploaded Songs Library</h2>
                         <div class="songs-list" id="songs-list">
                             <div class="loading">Loading songs...</div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Training Tab -->
-            <div class="tab-content" id="training">
-                <div class="training-container">
+                <!-- Training Tab -->
+                <div id="training" class="tab-content">
                     <div class="training-section">
-                        <h2>Model Training</h2>
+                        <h2>🧠 Train AI Model</h2>
                         
-                        <div class="training-status" id="training-status-section">
-                            <div class="status-card">
-                                <h3>Training Status</h3>
-                                <div class="status-indicator" id="status-indicator">
-                                    <span class="status-dot not-started"></span>
-                                    <span>Not Started</span>
+                        <div class="training-status">
+                            <h3>Training Status</h3>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="training-progress" style="width: 0%"></div>
                                 </div>
+                                <div class="progress-text" id="training-status">Status: Not Started (0%)</div>
                             </div>
                         </div>
 
-                        <div class="training-config">
-                            <h3>Training Configuration</h3>
-                            <form id="training-form" class="config-form">
-                                <div class="config-grid">
-                                    <div class="form-group">
-                                        <label for="session-name">Session Name</label>
-                                        <input type="text" id="session-name" name="session_name" placeholder="Training Session">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="epochs">Epochs</label>
-                                        <input type="number" id="epochs" name="epochs" value="100" min="10" max="500">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="batch-size">Batch Size</label>
-                                        <select id="batch-size" name="batch_size">
-                                            <option value="8">8</option>
-                                            <option value="16">16</option>
-                                            <option value="32" selected>32</option>
-                                            <option value="64">64</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="learning-rate">Learning Rate</label>
-                                        <select id="learning-rate" name="learning_rate">
-                                            <option value="0.0001">0.0001</option>
-                                            <option value="0.0005">0.0005</option>
-                                            <option value="0.001" selected>0.001</option>
-                                            <option value="0.005">0.005</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="training-actions">
-                                    <button type="submit" class="start-training-btn" id="start-training-btn">
-                                        <i class="fas fa-play"></i>
-                                        Start Training
-                                    </button>
-                                    <button type="button" class="stop-training-btn" id="stop-training-btn" style="display: none;">
-                                        <i class="fas fa-stop"></i>
-                                        Stop Training
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <div class="training-progress" id="training-progress" style="display: none;">
-                            <h3>Training Progress</h3>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="progress-fill"></div>
-                            </div>
-                            <div class="progress-stats">
-                                <span>Epoch: <span id="current-epoch">0</span>/<span id="total-epochs">100</span></span>
-                                <span>Loss: <span id="current-loss">0.00</span></span>
-                                <span>Accuracy: <span id="current-accuracy">0.00%</span></span>
-                            </div>
-                            <div class="progress-log" id="progress-log"></div>
+                        <div class="training-controls">
+                            <button id="start-training-btn" class="training-btn start-btn">
+                                <i class="fas fa-play"></i>
+                                Start Training
+                            </button>
+                            <button id="stop-training-btn" class="training-btn stop-btn" disabled>
+                                <i class="fas fa-stop"></i>
+                                Stop Training
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Generate Tab -->
-            <div class="tab-content" id="generate">
-                <div class="generate-container">
-                    <div class="generate-section">
-                        <h2>Generate New Song</h2>
+                <!-- Generation Tab -->
+                <div id="generation" class="tab-content">
+                    <div class="generation-section">
+                        <h2>✨ Generate Music</h2>
                         
-                        <form id="generate-form" class="generate-form">
-                            <div class="form-group full-width">
-                                <label for="input-lyrics">Input Lyrics/Poem *</label>
-                                <textarea id="input-lyrics" name="lyrics" rows="8" placeholder="Enter Arabic lyrics or poem here..." required></textarea>
+                        <form id="generation-form" class="generation-form">
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="generation-lyrics-file">Lyrics File (.txt) *</label>
+                                    <div class="file-upload-area" id="generation-lyrics-upload-area">
+                                        <i class="fas fa-file-text"></i>
+                                        <p>Drag and drop your lyrics .txt file here, or click to browse</p>
+                                        <input type="file" id="generation-lyrics-file" name="lyrics_file" accept=".txt" hidden required>
+                                        <button type="button" class="browse-btn">Browse Lyrics File</button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="generation-params">
-                                <h3>Generation Parameters</h3>
-                                <div class="params-grid">
-                                    <div class="form-group">
-                                        <label for="gen-maqam">Maqam</label>
-                                        <select id="gen-maqam" name="maqam">
-                                            <option value="hijaz">Hijaz</option>
-                                            <option value="bayati" selected>Bayati</option>
-                                            <option value="saba">Saba</option>
-                                            <option value="rast">Rast</option>
-                                            <option value="kurd">Kurd</option>
-                                        </select>
-                                    </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="generation-maqam">Maqam *</label>
+                                    <select id="generation-maqam" name="maqam" required>
+                                        <option value="hijaz">Hijaz</option>
+                                        <option value="bayati">Bayati</option>
+                                        <option value="rast">Rast</option>
+                                        <option value="nahawand">Nahawand</option>
+                                        <option value="saba">Saba</option>
+                                        <option value="kurd">Kurd</option>
+                                        <option value="ajam">Ajam</option>
+                                        <option value="sikah">Sikah</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="generation-style">Style *</label>
+                                    <select id="generation-style" name="style" required>
+                                        <option value="classical">Classical</option>
+                                        <option value="modern">Modern</option>
+                                        <option value="folk">Folk</option>
+                                        <option value="religious">Religious</option>
+                                        <option value="pop">Pop</option>
+                                        <option value="fusion">Fusion</option>
+                                    </select>
+                                </div>
+                            </div>
 
-                                    <div class="form-group">
-                                        <label for="gen-style">Style</label>
-                                        <select id="gen-style" name="style">
-                                            <option value="classical" selected>Classical</option>
-                                            <option value="folk">Folk</option>
-                                            <option value="modern">Modern</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="gen-tempo">Tempo (BPM)</label>
-                                        <input type="range" id="gen-tempo" name="tempo" min="60" max="180" value="120">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="generation-tempo">Tempo (BPM) *</label>
+                                    <div class="tempo-container">
+                                        <input type="range" id="generation-tempo" name="tempo" min="60" max="180" value="120" class="tempo-slider">
                                         <span class="tempo-value">120 BPM</span>
                                     </div>
-
-                                    <div class="form-group">
-                                        <label for="gen-emotion">Emotion</label>
-                                        <select id="gen-emotion" name="emotion">
-                                            <option value="neutral" selected>Neutral</option>
-                                            <option value="happy">Happy</option>
-                                            <option value="sad">Sad</option>
-                                            <option value="romantic">Romantic</option>
-                                            <option value="dramatic">Dramatic</option>
-                                        </select>
-                                    </div>
                                 </div>
-
-                                <div class="presets-section">
-                                    <h4>Quick Presets</h4>
-                                    <div class="presets-grid" id="presets-grid">
-                                        <!-- Presets will be loaded here -->
-                                    </div>
+                                <div class="form-group">
+                                    <label for="generation-emotion">Emotion *</label>
+                                    <select id="generation-emotion" name="emotion" required>
+                                        <option value="happy">Happy</option>
+                                        <option value="sad">Sad</option>
+                                        <option value="romantic">Romantic</option>
+                                        <option value="energetic">Energetic</option>
+                                        <option value="peaceful">Peaceful</option>
+                                        <option value="dramatic">Dramatic</option>
+                                        <option value="nostalgic">Nostalgic</option>
+                                    </select>
                                 </div>
                             </div>
 
-                            <button type="submit" class="generate-btn" id="generate-btn">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="generation-region">Region *</label>
+                                    <select id="generation-region" name="region" required>
+                                        <option value="egyptian">Egyptian</option>
+                                        <option value="lebanese">Lebanese</option>
+                                        <option value="syrian">Syrian</option>
+                                        <option value="iraqi">Iraqi</option>
+                                        <option value="gulf">Gulf</option>
+                                        <option value="maghrebi">Maghrebi</option>
+                                        <option value="sudanese">Sudanese</option>
+                                        <option value="palestinian">Palestinian</option>
+                                        <option value="jordanian">Jordanian</option>
+                                        <option value="mixed">Mixed</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button type="button" id="generate-btn" class="generate-button">
                                 <i class="fas fa-magic"></i>
                                 Generate Song
                             </button>
                         </form>
-
-                        <div class="generation-result" id="generation-result" style="display: none;">
-                            <h3>Generated Song</h3>
-                            <div class="result-content" id="result-content">
-                                <!-- Generated content will appear here -->
-                            </div>
-                        </div>
                     </div>
 
                     <div class="generated-songs-section">
