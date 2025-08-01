@@ -4,6 +4,7 @@ let trainingInterval = null;
 let isTraining = false;
 let selectedAudioFile = null;
 let selectedLyricsFile = null;
+let selectedGenerationLyricsFile = null;
 
 // API base URL
 const API_BASE = '/api';
@@ -94,6 +95,37 @@ function setupEventListeners() {
         });
     }
 
+    // Generation lyrics file upload
+    const generationLyricsFileInput = document.getElementById("generation-lyrics-file");
+    const generationLyricsUploadArea = document.getElementById("generation-lyrics-upload-area");
+    const generationLyricsBrowseButton = document.querySelector("#generation-lyrics-upload-area .browse-btn");
+
+    if (generationLyricsFileInput) {
+        generationLyricsFileInput.addEventListener("change", handleGenerationLyricsFileSelect);
+    }
+
+    if (generationLyricsBrowseButton) {
+        generationLyricsBrowseButton.addEventListener("click", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (generationLyricsFileInput) {
+                generationLyricsFileInput.click();
+            }
+        });
+    }
+
+    if (generationLyricsUploadArea) {
+        generationLyricsUploadArea.addEventListener("dragover", handleLyricsDragOver);
+        generationLyricsUploadArea.addEventListener("drop", handleGenerationLyricsFileDrop);
+        generationLyricsUploadArea.addEventListener("click", function(e) {
+            if (e.target === generationLyricsUploadArea || e.target.classList.contains('upload-text')) {
+                if (generationLyricsFileInput) {
+                    generationLyricsFileInput.click();
+                }
+            }
+        });
+    }
+
     // Upload button - DIRECT EVENT LISTENER
     const uploadBtn = document.getElementById('upload-btn');
     if (uploadBtn) {
@@ -119,17 +151,27 @@ function setupEventListeners() {
         stopTrainingBtn.addEventListener('click', stopTraining);
     }
 
-    // Generation form
+    // Generation button
     const generateBtn = document.getElementById('generate-btn');
     if (generateBtn) {
         generateBtn.addEventListener('click', generateMusic);
     }
 
-    // Tempo slider
+    // Tempo sliders
     const tempoSlider = document.getElementById("tempo");
     if (tempoSlider) {
         tempoSlider.addEventListener("input", function() {
             const tempoValue = document.querySelector("#upload .tempo-value");
+            if (tempoValue) {
+                tempoValue.textContent = this.value + " BPM";
+            }
+        });
+    }
+
+    const generationTempoSlider = document.getElementById("generation-tempo");
+    if (generationTempoSlider) {
+        generationTempoSlider.addEventListener("input", function() {
+            const tempoValue = document.querySelector("#generation .tempo-value");
             if (tempoValue) {
                 tempoValue.textContent = this.value + " BPM";
             }
@@ -157,7 +199,7 @@ function switchTab(tabName) {
     if (tabName === 'dashboard') {
         loadDashboardData();
     } else if (tabName === 'upload') {
-        // Reset upload form
+        loadSongs();
     } else if (tabName === 'training') {
         checkTrainingStatus();
     } else if (tabName === 'generation') {
@@ -191,7 +233,7 @@ function handleFileDrop(e) {
             selectedAudioFile = file;
             updateFileDisplay(selectedAudioFile);
         } else {
-            showToast('Please select a valid audio file (MP3, WAV, FLAC, M4A)', 'error');
+            alert('Please select a valid audio file (MP3, WAV, FLAC, M4A)');
         }
     }
 }
@@ -280,7 +322,31 @@ function handleLyricsFileDrop(e) {
             selectedLyricsFile = file;
             updateLyricsFileDisplay(selectedLyricsFile);
         } else {
-            showToast('Please select a valid .txt file for lyrics', 'error');
+            alert('Please select a valid .txt file for lyrics');
+        }
+    }
+}
+
+function handleGenerationLyricsFileSelect(e) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        selectedGenerationLyricsFile = files[0];
+        updateGenerationLyricsFileDisplay(selectedGenerationLyricsFile);
+    }
+}
+
+function handleGenerationLyricsFileDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        const file = files[0];
+        if (isValidLyricsFile(file)) {
+            selectedGenerationLyricsFile = file;
+            updateGenerationLyricsFileDisplay(selectedGenerationLyricsFile);
+        } else {
+            alert('Please select a valid .txt file for lyrics');
         }
     }
 }
@@ -303,6 +369,25 @@ function updateLyricsFileDisplay(file) {
                     <div class="file-size">${fileSize}</div>
                 </div>
                 <button type="button" class="remove-file" onclick="removeSelectedLyricsFile()">×</button>
+            </div>
+        `;
+    }
+}
+
+function updateGenerationLyricsFileDisplay(file) {
+    const generationLyricsUploadArea = document.getElementById("generation-lyrics-upload-area");
+    if (generationLyricsUploadArea && file) {
+        const fileName = file.name;
+        const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+        
+        generationLyricsUploadArea.innerHTML = `
+            <div class="file-selected">
+                <div class="file-icon">📄</div>
+                <div class="file-info">
+                    <div class="file-name">${fileName}</div>
+                    <div class="file-size">${fileSize}</div>
+                </div>
+                <button type="button" class="remove-file" onclick="removeSelectedGenerationLyricsFile()">×</button>
             </div>
         `;
     }
@@ -339,6 +424,37 @@ function removeSelectedLyricsFile() {
     }
 }
 
+function removeSelectedGenerationLyricsFile() {
+    selectedGenerationLyricsFile = null;
+    const generationLyricsUploadArea = document.getElementById("generation-lyrics-upload-area");
+    if (generationLyricsUploadArea) {
+        generationLyricsUploadArea.innerHTML = `
+            <i class="fas fa-file-text"></i>
+            <p>Drag and drop your lyrics .txt file here, or click to browse</p>
+            <input type="file" id="generation-lyrics-file" name="lyrics_file" accept=".txt" hidden required>
+            <button type="button" class="browse-btn">Browse Lyrics File</button>
+        `;
+        
+        // Re-attach event listeners
+        const generationLyricsFileInput = document.getElementById("generation-lyrics-file");
+        const generationLyricsBrowseButton = document.querySelector("#generation-lyrics-upload-area .browse-btn");
+        
+        if (generationLyricsFileInput) {
+            generationLyricsFileInput.addEventListener("change", handleGenerationLyricsFileSelect);
+        }
+        
+        if (generationLyricsBrowseButton) {
+            generationLyricsBrowseButton.addEventListener("click", function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (generationLyricsFileInput) {
+                    generationLyricsFileInput.click();
+                }
+            });
+        }
+    }
+}
+
 // Upload handling
 function handleUpload() {
     console.log('handleUpload called');
@@ -367,15 +483,8 @@ function handleUpload() {
     const poemBahr = document.getElementById('poem-bahr').value;
     
     // Validate required fields
-    if (!title || !artist || !maqam || !style || !tempo || !emotion || !region) {
-        alert('Please fill in all required fields');
-        return;
-    }
-    
-    // Validate tempo
-    const tempoInt = parseInt(tempo);
-    if (isNaN(tempoInt) || tempoInt < 60 || tempoInt > 180) {
-        alert('Tempo must be between 60 and 180 BPM');
+    if (!title || !artist) {
+        alert('Please fill in title and artist');
         return;
     }
     
@@ -427,6 +536,12 @@ function handleUpload() {
             document.getElementById('emotion').selectedIndex = 0;
             document.getElementById('region').selectedIndex = 0;
             document.getElementById('poem-bahr').selectedIndex = 0;
+            
+            // Update tempo display
+            const tempoValue = document.querySelector("#upload .tempo-value");
+            if (tempoValue) {
+                tempoValue.textContent = "120 BPM";
+            }
             
             // Clear selected files
             selectedAudioFile = null;
@@ -514,7 +629,10 @@ function displaySongs(songs) {
                     <p><strong>Maqam:</strong> ${song.maqam}</p>
                     <p><strong>Style:</strong> ${song.style}</p>
                     <p><strong>Tempo:</strong> ${song.tempo} BPM</p>
+                    <p><strong>Emotion:</strong> ${song.emotion}</p>
+                    <p><strong>Region:</strong> ${song.region}</p>
                     <p><strong>Size:</strong> ${song.file_size_mb} MB</p>
+                    ${song.composer ? `<p><strong>Composer:</strong> ${song.composer}</p>` : ''}
                 </div>
                 <div class="song-actions">
                     <button onclick="deleteSong(${song.id})" class="delete-btn">Delete</button>
@@ -522,7 +640,7 @@ function displaySongs(songs) {
             </div>
         `).join('');
     } else {
-        container.innerHTML = '<p>No songs uploaded yet. Upload your first song above!</p>';
+        container.innerHTML = '<p class="text-center text-muted">No songs uploaded yet. Upload your first song above!</p>';
     }
 }
 
@@ -634,16 +752,14 @@ function stopTraining() {
 
 // Generation functions
 function generateMusic() {
-    const formData = new FormData();
-    
     // Check if lyrics file is provided
-    const lyricsFileInput = document.getElementById('generation-lyrics-file');
-    if (lyricsFileInput && lyricsFileInput.files.length > 0) {
-        formData.append('lyrics_file', lyricsFileInput.files[0]);
-    } else {
+    if (!selectedGenerationLyricsFile) {
         alert('Please select a lyrics file for generation');
         return;
     }
+    
+    const formData = new FormData();
+    formData.append('lyrics_file', selectedGenerationLyricsFile);
     
     // Get other form values
     const maqam = document.getElementById('generation-maqam').value;
@@ -658,6 +774,13 @@ function generateMusic() {
     formData.append('emotion', emotion);
     formData.append('region', region);
     
+    // Disable generate button
+    const generateBtn = document.getElementById('generate-btn');
+    if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'Generating...';
+    }
+    
     fetch(`${API_BASE}/generation/generate`, {
         method: 'POST',
         body: formData
@@ -667,12 +790,19 @@ function generateMusic() {
         if (data.success) {
             alert('Song generated successfully!');
             loadGeneratedSongs();
+            loadDashboardData();
         } else {
             alert('Generation failed: ' + data.error);
         }
     })
     .catch(error => {
         alert('Generation failed: ' + error.message);
+    })
+    .finally(() => {
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.textContent = 'Generate Song';
+        }
     });
 }
 
@@ -702,6 +832,8 @@ function displayGeneratedSongs(songs) {
                     <p><strong>Style:</strong> ${song.style}</p>
                     <p><strong>Tempo:</strong> ${song.tempo} BPM</p>
                     <p><strong>Emotion:</strong> ${song.emotion}</p>
+                    <p><strong>Region:</strong> ${song.region}</p>
+                    <p><strong>Generation Time:</strong> ${song.generation_time}s</p>
                 </div>
                 <div class="song-actions">
                     <button onclick="deleteGeneratedSong(${song.id})" class="delete-btn">Delete</button>
@@ -709,7 +841,7 @@ function displayGeneratedSongs(songs) {
             </div>
         `).join('');
     } else {
-        container.innerHTML = '<p>No songs generated yet. Create your first AI-generated song above!</p>';
+        container.innerHTML = '<p class="text-center text-muted">No songs generated yet. Create your first AI-generated song above!</p>';
     }
 }
 
@@ -723,6 +855,7 @@ function deleteGeneratedSong(songId) {
             if (data.success) {
                 alert('Generated song deleted successfully');
                 loadGeneratedSongs();
+                loadDashboardData();
             } else {
                 alert('Delete failed: ' + data.error);
             }
