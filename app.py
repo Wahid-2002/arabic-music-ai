@@ -12,41 +12,17 @@ import json
 import uuid
 import time
 import random
-import re
 
 # Create Flask app
 app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# FIXED: Smart database configuration that handles Render's broken DATABASE_URL
-def fix_database_url():
-    database_url = os.environ.get('DATABASE_URL')
-    
-    if not database_url:
-        # Local development - use SQLite
-        return 'sqlite:///arabic_music_ai.db'
-    
-    # Fix common Render PostgreSQL URL issues
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    
-    # Fix the broken port issue
-    if 'port' in database_url and not re.search(r':\d+/', database_url):
-        # Replace literal 'port' with default PostgreSQL port
-        database_url = database_url.replace(':port/', ':5432/')
-        database_url = database_url.replace(':port@', ':5432@')
-    
-    # Additional fixes for malformed URLs
-    database_url = database_url.replace('postgresql://port:', 'postgresql://user:')
-    database_url = database_url.replace('@port:', '@localhost:')
-    
-    print(f"Fixed DATABASE_URL: {database_url[:50]}...")  # Log first 50 chars for debugging
-    return database_url
-
-# Apply the fixed database URL
-app.config['SQLALCHEMY_DATABASE_URI'] = fix_database_url()
+# SIMPLE: Always use SQLite - works everywhere, no database setup needed
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+print("✅ Using SQLite database - no external database required")
 
 # Initialize extensions
 CORS(app)
@@ -58,7 +34,7 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Song model - SIMPLE and WORKING
+# Song model
 class Song(db.Model):
     __tablename__ = 'songs'
     
@@ -149,7 +125,7 @@ class GeneratedSong(db.Model):
 with app.app_context():
     try:
         db.create_all()
-        print("✅ Database tables created successfully!")
+        print("✅ SQLite database tables created successfully!")
         
         # Add sample song if none exist
         if Song.query.count() == 0:
@@ -168,7 +144,7 @@ with app.app_context():
             )
             db.session.add(sample_song)
             db.session.commit()
-            print("✅ Sample song added!")
+            print("✅ Sample song added to SQLite database!")
             
     except Exception as e:
         print(f"❌ Database setup error: {e}")
@@ -181,7 +157,7 @@ def upload_song():
         print(f"Files: {list(request.files.keys())}")
         print(f"Form: {dict(request.form)}")
         
-        # Get files - be flexible with names
+        # Get files
         audio_file = None
         lyrics_file = None
         
@@ -196,11 +172,9 @@ def upload_song():
                     print(f"✅ Lyrics file found: {file.filename}")
         
         if not audio_file:
-            print("❌ No audio file found")
             return jsonify({'success': False, 'error': 'No audio file found'}), 400
             
         if not lyrics_file:
-            print("❌ No lyrics file found")
             return jsonify({'success': False, 'error': 'No lyrics file found'}), 400
         
         # Read lyrics content
@@ -208,7 +182,6 @@ def upload_song():
             lyrics_content = lyrics_file.read().decode('utf-8')
             print(f"✅ Lyrics read successfully, length: {len(lyrics_content)}")
         except Exception as e:
-            print(f"❌ Error reading lyrics: {e}")
             return jsonify({'success': False, 'error': f'Error reading lyrics file: {str(e)}'}), 400
         
         # Get form data with defaults
@@ -222,15 +195,11 @@ def upload_song():
         composer = request.form.get('composer', '')
         poem_bahr = request.form.get('poem_bahr', '')
         
-        print(f"Form data - Title: '{title}', Artist: '{artist}', Maqam: '{maqam}'")
-        
         # Calculate file size
-        audio_file.seek(0, 2)  # Seek to end
+        audio_file.seek(0, 2)
         file_size_bytes = audio_file.tell()
-        audio_file.seek(0)  # Reset to beginning
+        audio_file.seek(0)
         file_size_mb = file_size_bytes / (1024 * 1024)
-        
-        print("Creating song object...")
         
         # Create song object
         song = Song(
@@ -247,36 +216,23 @@ def upload_song():
             file_size_mb=file_size_mb
         )
         
-        print("Saving to database...")
-        
         # Save to database
         try:
             db.session.add(song)
             db.session.commit()
             print(f"✅ Song saved successfully with ID: {song.id}")
             
-            # Verify it was saved
-            saved_song = Song.query.get(song.id)
-            if saved_song:
-                print("✅ Verification: Song exists in database")
-            else:
-                print("❌ Verification: Song not found in database")
-            
             return jsonify({
                 'success': True,
                 'message': f'Song "{title}" uploaded successfully!',
                 'song_id': song.id,
-                'file_size': f'{file_size_mb:.2f} MB',
-                'lyrics_length': len(lyrics_content)
+                'file_size': f'{file_size_mb:.2f} MB'
             })
             
         except Exception as db_error:
             print(f"❌ Database error: {db_error}")
             db.session.rollback()
-            return jsonify({
-                'success': False,
-                'error': f'Failed to save song to database: {str(db_error)}'
-            }), 500
+            return jsonify({'success': False, 'error': f'Database error: {str(db_error)}'}), 500
         
     except Exception as e:
         print(f"❌ Upload error: {e}")
@@ -287,10 +243,7 @@ def list_songs():
     try:
         print("=== LIST SONGS REQUEST ===")
         songs = Song.query.order_by(Song.created_at.desc()).all()
-        print(f"Found {len(songs)} songs in database")
-        
-        for song in songs:
-            print(f"Song: {song.title} by {song.artist}")
+        print(f"Found {len(songs)} songs in SQLite database")
         
         return jsonify({
             'success': True,
@@ -414,7 +367,7 @@ def generate_music():
         emotion = request.form.get('emotion', 'neutral')
         region = request.form.get('region', 'mixed')
         
-        # Generate title from lyrics (first line)
+        # Generate title from lyrics
         title = lyrics_content.split('\n')[0][:50] if lyrics_content else f"Generated Song {random.randint(1, 1000)}"
         
         # Simulate generation time
@@ -468,7 +421,7 @@ def delete_generated_song(song_id):
 # Health check
 @app.route('/health')
 def health_check():
-    return jsonify({'status': 'healthy', 'message': 'Arabic Music AI is running!'})
+    return jsonify({'status': 'healthy', 'message': 'Arabic Music AI is running with SQLite!'})
 
 # Static file serving
 @app.route('/', defaults={'path': ''})
@@ -481,4 +434,4 @@ def serve(path):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
