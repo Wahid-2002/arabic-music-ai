@@ -12,6 +12,7 @@ import json
 import uuid
 import time
 import random
+import threading
 
 # Create Flask app
 app = Flask(__name__, static_folder='src/static')
@@ -28,13 +29,17 @@ print("✅ Using SQLite database - no external database required")
 CORS(app)
 db = SQLAlchemy(app)
 
+# Global variable to track active training
+active_training_session = None
+training_thread = None
+
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Song model
+# Song model - PRESERVES EXISTING DATA
 class Song(db.Model):
     __tablename__ = 'songs'
     
@@ -121,14 +126,77 @@ class GeneratedSong(db.Model):
             'created_at': self.created_at.isoformat()
         }
 
-# Create tables and add sample data
+# Training progress simulation function
+def simulate_training_progress(session_id):
+    """Background function to simulate training progress"""
+    global active_training_session
+    
+    try:
+        with app.app_context():
+            session = TrainingSession.query.get(session_id)
+            if not session:
+                return
+            
+            print(f"🧠 Starting training simulation for session {session_id}")
+            
+            # Simulate training progress over 60 seconds (1 minute)
+            total_steps = 100
+            step_duration = 0.6  # 60 seconds / 100 steps = 0.6 seconds per step
+            
+            for step in range(1, total_steps + 1):
+                if session.status != 'training':
+                    print(f"🛑 Training stopped at step {step}")
+                    break
+                
+                # Update progress
+                session.progress = step
+                
+                # Add some realistic training messages
+                if step % 10 == 0:
+                    print(f"🧠 Training progress: {step}% - Epoch {step//10}/10")
+                
+                # Simulate different training phases
+                if step <= 20:
+                    session.status = 'training'  # Initial training
+                elif step <= 80:
+                    session.status = 'training'  # Main training
+                else:
+                    session.status = 'training'  # Final optimization
+                
+                db.session.commit()
+                time.sleep(step_duration)
+            
+            # Complete training
+            if session.status == 'training':
+                session.status = 'completed'
+                session.progress = 100
+                session.completed_at = datetime.utcnow()
+                db.session.commit()
+                print(f"✅ Training completed for session {session_id}")
+            
+            active_training_session = None
+            
+    except Exception as e:
+        print(f"❌ Training simulation error: {e}")
+        with app.app_context():
+            session = TrainingSession.query.get(session_id)
+            if session:
+                session.status = 'error'
+                db.session.commit()
+        active_training_session = None
+
+# Create tables and preserve existing data
 with app.app_context():
     try:
         db.create_all()
         print("✅ SQLite database tables created successfully!")
         
-        # Add sample song if none exist
-        if Song.query.count() == 0:
+        # Check existing songs count
+        existing_songs = Song.query.count()
+        print(f"📊 Found {existing_songs} existing songs in database")
+        
+        # Only add sample song if NO songs exist (preserves user data)
+        if existing_songs == 0:
             sample_song = Song(
                 title="Sample Arabic Song",
                 artist="Test Artist",
@@ -145,11 +213,13 @@ with app.app_context():
             db.session.add(sample_song)
             db.session.commit()
             print("✅ Sample song added to SQLite database!")
+        else:
+            print("✅ Preserving existing songs - no sample data added")
             
     except Exception as e:
         print(f"❌ Database setup error: {e}")
 
-# API Routes
+# API Routes (Upload route unchanged to preserve functionality)
 @app.route('/api/songs/upload', methods=['POST'])
 def upload_song():
     try:
@@ -284,6 +354,7 @@ def dashboard_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# FIXED: Training routes with working progress simulation
 @app.route('/api/training/status')
 def training_status():
     try:
@@ -311,9 +382,16 @@ def training_status():
 
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
+    global active_training_session, training_thread
+    
     try:
+        # Check if training is already active
+        if active_training_session:
+            return jsonify({'success': False, 'error': 'Training is already in progress'}), 400
+        
         data = request.get_json() or {}
         
+        # Create new training session
         session = TrainingSession(
             status='training',
             progress=0,
@@ -325,23 +403,45 @@ def start_training():
         db.session.add(session)
         db.session.commit()
         
+        # Set as active session
+        active_training_session = session.id
+        
+        # Start background training simulation
+        training_thread = threading.Thread(
+            target=simulate_training_progress, 
+            args=(session.id,),
+            daemon=True
+        )
+        training_thread.start()
+        
+        print(f"🧠 Training started for session {session.id}")
+        
         return jsonify({
             'success': True,
-            'message': 'Training started successfully!',
+            'message': 'Training started successfully! Progress will update automatically.',
             'session_id': session.id
         })
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/training/stop', methods=['POST'])
 def stop_training():
+    global active_training_session
+    
     try:
         session = TrainingSession.query.filter_by(status='training').first()
         if session:
             session.status = 'stopped'
             session.completed_at = datetime.utcnow()
             db.session.commit()
+            
+            # Clear active session
+            active_training_session = None
+            
+            print(f"🛑 Training stopped for session {session.id}")
+            
             return jsonify({'success': True, 'message': 'Training stopped successfully!'})
         else:
             return jsonify({'success': False, 'error': 'No active training session found'}), 400
@@ -349,6 +449,7 @@ def stop_training():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# Generation routes (unchanged)
 @app.route('/api/generation/generate', methods=['POST'])
 def generate_music():
     try:
