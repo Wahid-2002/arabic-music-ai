@@ -19,16 +19,14 @@ app = Flask(__name__, static_folder='src/static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 
-# PERSISTENT DATABASE: Use PostgreSQL on Render, SQLite locally
+# Database configuration
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
-    # Fix PostgreSQL URL format if needed
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     print("✅ Using PostgreSQL database - data will persist across deployments!")
 else:
-    # Local development fallback
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
     print("✅ Using SQLite database for local development")
 
@@ -48,7 +46,7 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Song model - PERSISTENT ACROSS DEPLOYMENTS
+# Song model
 class Song(db.Model):
     __tablename__ = 'songs'
     
@@ -137,7 +135,6 @@ class GeneratedSong(db.Model):
 
 # Training progress simulation function
 def simulate_training_progress(session_id):
-    """Background function to simulate training progress"""
     global active_training_session
     
     try:
@@ -148,7 +145,6 @@ def simulate_training_progress(session_id):
             
             print(f"🧠 Starting training simulation for session {session_id}")
             
-            # Simulate training progress over 60 seconds
             total_steps = 100
             step_duration = 0.6
             
@@ -165,7 +161,6 @@ def simulate_training_progress(session_id):
                 db.session.commit()
                 time.sleep(step_duration)
             
-            # Complete training
             if session.status == 'training':
                 session.status = 'completed'
                 session.progress = 100
@@ -184,17 +179,15 @@ def simulate_training_progress(session_id):
                 db.session.commit()
         active_training_session = None
 
-# Create tables - PERSISTENT DATABASE
+# Create tables
 with app.app_context():
     try:
         db.create_all()
         print("✅ Database tables created successfully!")
         
-        # Check existing songs count
         existing_songs = Song.query.count()
-        print(f"📊 Found {existing_songs} existing songs in PERSISTENT database")
+        print(f"📊 Found {existing_songs} existing songs in database")
         
-        # Only add sample song if database is completely empty
         if existing_songs == 0:
             sample_song = Song(
                 title="Welcome to Arabic Music AI",
@@ -211,15 +204,12 @@ with app.app_context():
             )
             db.session.add(sample_song)
             db.session.commit()
-            print("✅ Welcome song added to PERSISTENT database!")
+            print("✅ Welcome song added to database!")
         else:
-            print("✅ PERSISTENT database contains existing songs - preserving all data")
+            print("✅ Database contains existing songs - preserving all data")
             
     except Exception as e:
         print(f"❌ Database setup error: {e}")
-
-# All API routes remain the same...
-# [Include all the same API routes from the previous version]
 
 # API Routes
 @app.route('/api/songs/upload', methods=['POST'])
@@ -229,7 +219,6 @@ def upload_song():
         print(f"Files: {list(request.files.keys())}")
         print(f"Form: {dict(request.form)}")
         
-        # Get files
         audio_file = None
         lyrics_file = None
         
@@ -249,14 +238,12 @@ def upload_song():
         if not lyrics_file:
             return jsonify({'success': False, 'error': 'No lyrics file found'}), 400
         
-        # Read lyrics content
         try:
             lyrics_content = lyrics_file.read().decode('utf-8')
             print(f"✅ Lyrics read successfully, length: {len(lyrics_content)}")
         except Exception as e:
             return jsonify({'success': False, 'error': f'Error reading lyrics file: {str(e)}'}), 400
         
-        # Get form data with defaults
         title = request.form.get('title', 'Untitled Song')
         artist = request.form.get('artist', 'Unknown Artist')
         maqam = request.form.get('maqam', 'hijaz')
@@ -267,13 +254,11 @@ def upload_song():
         composer = request.form.get('composer', '')
         poem_bahr = request.form.get('poem_bahr', '')
         
-        # Calculate file size
         audio_file.seek(0, 2)
         file_size_bytes = audio_file.tell()
         audio_file.seek(0)
         file_size_mb = file_size_bytes / (1024 * 1024)
         
-        # Create song object
         song = Song(
             title=title,
             artist=artist,
@@ -288,15 +273,14 @@ def upload_song():
             file_size_mb=file_size_mb
         )
         
-        # Save to PERSISTENT database
         try:
             db.session.add(song)
             db.session.commit()
-            print(f"✅ Song saved to PERSISTENT database with ID: {song.id}")
+            print(f"✅ Song saved to database with ID: {song.id}")
             
             return jsonify({
                 'success': True,
-                'message': f'Song "{title}" uploaded successfully to persistent storage!',
+                'message': f'Song "{title}" uploaded successfully!',
                 'song_id': song.id,
                 'file_size': f'{file_size_mb:.2f} MB'
             })
@@ -315,7 +299,7 @@ def list_songs():
     try:
         print("=== LIST SONGS REQUEST ===")
         songs = Song.query.order_by(Song.created_at.desc()).all()
-        print(f"Found {len(songs)} songs in PERSISTENT database")
+        print(f"Found {len(songs)} songs in database")
         
         return jsonify({
             'success': True,
@@ -415,7 +399,7 @@ def start_training():
         
         return jsonify({
             'success': True,
-            'message': 'Training started successfully! Progress will update automatically.',
+            'message': 'Training started successfully!',
             'session_id': session.id
         })
         
@@ -496,6 +480,17 @@ def list_generated_songs():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/generation/<int:song_id>')
+def get_generated_song(song_id):
+    try:
+        song = GeneratedSong.query.get_or_404(song_id)
+        return jsonify({
+            'success': True,
+            'song': song.to_dict()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/generation/<int:song_id>', methods=['DELETE'])
 def delete_generated_song(song_id):
     try:
@@ -505,11 +500,11 @@ def delete_generated_song(song_id):
         return jsonify({'success': True, 'message': 'Generated song deleted successfully!'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}'), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/health')
 def health_check():
-    return jsonify({'status': 'healthy', 'message': 'Arabic Music AI with PERSISTENT storage!'})
+    return jsonify({'status': 'healthy', 'message': 'Arabic Music AI is running!'})
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -522,13 +517,3 @@ def serve(path):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-@app.route('/api/generation/<int:song_id>')
-def get_generated_song(song_id):
-    try:
-        song = GeneratedSong.query.get_or_404(song_id)
-        return jsonify({
-            'success': True,
-            'song': song.to_dict()
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
