@@ -810,14 +810,178 @@ function loadGeneratedSongs() {
     fetch(`${API_BASE}/generation/list`)
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                displayGeneratedSongs(data.songs);
+            const container = document.getElementById('generated-songs-list');
+            if (data.success && data.songs && data.songs.length > 0) {
+                container.innerHTML = data.songs.map(song => `
+                    <div class="song-card">
+                        <div class="song-info">
+                            <h3>${song.title}</h3>
+                            <p><strong>Maqam:</strong> ${song.maqam} | <strong>Style:</strong> ${song.style}</p>
+                            <p><strong>Tempo:</strong> ${song.tempo} BPM | <strong>Emotion:</strong> ${song.emotion}</p>
+                            <p><strong>Region:</strong> ${song.region} | <strong>Generated in:</strong> ${song.generation_time}s</p>
+                            <p><strong>Created:</strong> ${new Date(song.created_at).toLocaleDateString()}</p>
+                            <div class="lyrics-preview">
+                                <strong>Lyrics Preview:</strong>
+                                <div class="lyrics-text">${song.lyrics.substring(0, 150)}${song.lyrics.length > 150 ? '...' : ''}</div>
+                            </div>
+                        </div>
+                        <div class="song-actions">
+                            <button onclick="viewGeneratedSong(${song.id})" class="view-btn">
+                                <i class="fas fa-eye"></i> View Full
+                            </button>
+                            <button onclick="downloadGeneratedSong(${song.id})" class="download-btn">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                            <button onclick="deleteGeneratedSong(${song.id})" class="delete-btn">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p>No songs generated yet. Create your first AI-generated song above!</p>';
             }
         })
         .catch(error => {
             console.error('Error loading generated songs:', error);
+            document.getElementById('generated-songs-list').innerHTML = '<p>Error loading generated songs.</p>';
         });
 }
+
+// Add these new functions to your script.js file:
+
+function viewGeneratedSong(songId) {
+    fetch(`${API_BASE}/generation/${songId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const song = data.song;
+                
+                // Create modal content
+                const modalContent = `
+                    <div class="modal-overlay" id="song-modal" onclick="closeModal()">
+                        <div class="modal-content" onclick="event.stopPropagation()">
+                            <div class="modal-header">
+                                <h2>${song.title}</h2>
+                                <button onclick="closeModal()" class="close-btn">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="song-details">
+                                    <p><strong>Maqam:</strong> ${song.maqam}</p>
+                                    <p><strong>Style:</strong> ${song.style}</p>
+                                    <p><strong>Tempo:</strong> ${song.tempo} BPM</p>
+                                    <p><strong>Emotion:</strong> ${song.emotion}</p>
+                                    <p><strong>Region:</strong> ${song.region}</p>
+                                    <p><strong>Generation Time:</strong> ${song.generation_time} seconds</p>
+                                    <p><strong>Created:</strong> ${new Date(song.created_at).toLocaleString()}</p>
+                                </div>
+                                <div class="lyrics-full">
+                                    <h3>Complete Lyrics:</h3>
+                                    <div class="lyrics-content">${song.lyrics.replace(/\n/g, '  
+')}</div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button onclick="downloadGeneratedSong(${song.id})" class="download-btn">
+                                        <i class="fas fa-download"></i> Download Song Data
+                                    </button>
+                                    <button onclick="copyLyrics('${song.lyrics.replace(/'/g, "\\'")}'))" class="copy-btn">
+                                        <i class="fas fa-copy"></i> Copy Lyrics
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add modal to page
+                document.body.insertAdjacentHTML('beforeend', modalContent);
+            } else {
+                alert('Error loading song details: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error loading song: ' + error.message);
+        });
+}
+
+function downloadGeneratedSong(songId) {
+    fetch(`${API_BASE}/generation/${songId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const song = data.song;
+                
+                // Create downloadable content
+                const songData = {
+                    title: song.title,
+                    maqam: song.maqam,
+                    style: song.style,
+                    tempo: song.tempo,
+                    emotion: song.emotion,
+                    region: song.region,
+                    lyrics: song.lyrics,
+                    generation_time: song.generation_time,
+                    created_at: song.created_at,
+                    generated_by: "Arabic Music AI"
+                };
+                
+                // Create and download JSON file
+                const dataStr = JSON.stringify(songData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${song.title.replace(/[^a-z0-9]/gi, '_')}_generated_song.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                // Also create lyrics text file
+                const lyricsBlob = new Blob([song.lyrics], {type: 'text/plain;charset=utf-8'});
+                const lyricsUrl = URL.createObjectURL(lyricsBlob);
+                
+                const lyricsLink = document.createElement('a');
+                lyricsLink.href = lyricsUrl;
+                lyricsLink.download = `${song.title.replace(/[^a-z0-9]/gi, '_')}_lyrics.txt`;
+                document.body.appendChild(lyricsLink);
+                lyricsLink.click();
+                document.body.removeChild(lyricsLink);
+                URL.revokeObjectURL(lyricsUrl);
+                
+                alert('Song data and lyrics downloaded successfully!');
+            } else {
+                alert('Error downloading song: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error downloading song: ' + error.message);
+        });
+}
+
+function copyLyrics(lyrics) {
+    navigator.clipboard.writeText(lyrics).then(() => {
+        alert('Lyrics copied to clipboard!');
+    }).catch(err => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = lyrics;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Lyrics copied to clipboard!');
+    });
+}
+
+function closeModal() {
+    const modal = document.getElementById('song-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
 
 function displayGeneratedSongs(songs) {
     const container = document.getElementById('generated-songs-list');
