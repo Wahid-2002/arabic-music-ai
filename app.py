@@ -522,3 +522,13 @@ def serve(path):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+@app.route('/api/generation/<int:song_id>')
+def get_generated_song(song_id):
+    try:
+        song = GeneratedSong.query.get_or_404(song_id)
+        return jsonify({
+            'success': True,
+            'song': song.to_dict()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
