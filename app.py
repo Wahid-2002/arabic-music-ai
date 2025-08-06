@@ -46,7 +46,7 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Song model
+# Song model - COMPATIBLE with existing database
 class Song(db.Model):
     __tablename__ = 'songs'
     
@@ -61,7 +61,8 @@ class Song(db.Model):
     region = db.Column(db.String(50), nullable=False)
     composer = db.Column(db.String(200), nullable=True)
     poem_bahr = db.Column(db.String(50), nullable=True)
-    file_size_mb = db.Column(db.Float, nullable=False, default=0.0)
+    # Use existing column name from your database
+    file_size = db.Column(db.Float, nullable=False, default=0.0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     def to_dict(self):
@@ -77,7 +78,7 @@ class Song(db.Model):
             'region': self.region,
             'composer': self.composer,
             'poem_bahr': self.poem_bahr,
-            'file_size_mb': round(self.file_size_mb, 2),
+            'file_size_mb': round(self.file_size, 2),
             'created_at': self.created_at.isoformat()
         }
 
@@ -185,28 +186,14 @@ with app.app_context():
         db.create_all()
         print("✅ Database tables created successfully!")
         
-        existing_songs = Song.query.count()
-        print(f"📊 Found {existing_songs} existing songs in database")
-        
-        if existing_songs == 0:
-            sample_song = Song(
-                title="Welcome to Arabic Music AI",
-                artist="System",
-                lyrics="مرحباً بك في تطبيق الموسيقى العربية\nهذا مثال لأغنية في قاعدة البيانات\nيمكنك حذف هذه الأغنية وإضافة أغانيك الخاصة",
-                maqam="hijaz",
-                style="modern",
-                tempo=120,
-                emotion="welcoming",
-                region="mixed",
-                composer="AI System",
-                poem_bahr="baseet",
-                file_size_mb=0.0
-            )
-            db.session.add(sample_song)
-            db.session.commit()
-            print("✅ Welcome song added to database!")
-        else:
+        # Check existing songs without causing column errors
+        try:
+            existing_songs = Song.query.count()
+            print(f"📊 Found {existing_songs} existing songs in database")
             print("✅ Database contains existing songs - preserving all data")
+        except Exception as count_error:
+            print(f"📊 Could not count existing songs: {count_error}")
+            print("✅ Database ready for new songs")
             
     except Exception as e:
         print(f"❌ Database setup error: {e}")
@@ -270,7 +257,7 @@ def upload_song():
             region=region,
             composer=composer if composer else None,
             poem_bahr=poem_bahr if poem_bahr else None,
-            file_size_mb=file_size_mb
+            file_size=file_size_mb  # Use existing column name
         )
         
         try:
@@ -324,7 +311,7 @@ def delete_song(song_id):
 def dashboard_stats():
     try:
         songs_count = Song.query.count()
-        total_size = db.session.query(db.func.sum(Song.file_size_mb)).scalar() or 0
+        total_size = db.session.query(db.func.sum(Song.file_size)).scalar() or 0
         training_sessions = TrainingSession.query.count()
         generated_count = GeneratedSong.query.count()
         
