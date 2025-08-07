@@ -61,7 +61,6 @@ class Song(db.Model):
     region = db.Column(db.String(50), nullable=False)
     composer = db.Column(db.String(200), nullable=True)
     poem_bahr = db.Column(db.String(50), nullable=True)
-    # Use existing column name from your database
     file_size = db.Column(db.Float, nullable=False, default=0.0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
@@ -82,16 +81,18 @@ class Song(db.Model):
             'created_at': self.created_at.isoformat()
         }
 
+# SIMPLIFIED Training Session model - compatible with existing schema
 class TrainingSession(db.Model):
     __tablename__ = 'training_sessions'
     
     id = db.Column(db.Integer, primary_key=True)
     status = db.Column(db.String(50), nullable=False, default='not_started')
     progress = db.Column(db.Integer, nullable=False, default=0)
-    epochs = db.Column(db.Integer, nullable=False, default=100)
-    learning_rate = db.Column(db.Float, nullable=False, default=0.001)
-    batch_size = db.Column(db.Integer, nullable=False, default=32)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Make optional fields truly optional
+    epochs = db.Column(db.Integer, nullable=True, default=100)
+    learning_rate = db.Column(db.Float, nullable=True, default=0.001)
+    batch_size = db.Column(db.Integer, nullable=True, default=32)
     completed_at = db.Column(db.DateTime, nullable=True)
     
     def to_dict(self):
@@ -99,9 +100,9 @@ class TrainingSession(db.Model):
             'id': self.id,
             'status': self.status,
             'progress': self.progress,
-            'epochs': self.epochs,
-            'learning_rate': self.learning_rate,
-            'batch_size': self.batch_size,
+            'epochs': self.epochs or 100,
+            'learning_rate': self.learning_rate or 0.001,
+            'batch_size': self.batch_size or 32,
             'created_at': self.created_at.isoformat(),
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
@@ -134,7 +135,7 @@ class GeneratedSong(db.Model):
             'created_at': self.created_at.isoformat()
         }
 
-# Training progress simulation function
+# SIMPLIFIED Training progress simulation
 def simulate_training_progress(session_id):
     global active_training_session
     
@@ -142,6 +143,7 @@ def simulate_training_progress(session_id):
         with app.app_context():
             session = TrainingSession.query.get(session_id)
             if not session:
+                print(f"❌ Training session {session_id} not found")
                 return
             
             print(f"🧠 Starting training simulation for session {session_id}")
@@ -150,34 +152,42 @@ def simulate_training_progress(session_id):
             step_duration = 0.6
             
             for step in range(1, total_steps + 1):
-                if session.status != 'training':
+                # Refresh session from database
+                session = TrainingSession.query.get(session_id)
+                if not session or session.status != 'training':
                     print(f"🛑 Training stopped at step {step}")
                     break
                 
+                # Update progress
                 session.progress = step
                 
                 if step % 10 == 0:
-                    print(f"🧠 Training progress: {step}% - Epoch {step//10}/10")
+                    print(f"🧠 Training progress: {step}% - Step {step}/100")
                 
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except Exception as commit_error:
+                    print(f"❌ Error updating progress: {commit_error}")
+                    break
+                
                 time.sleep(step_duration)
             
-            if session.status == 'training':
+            # Final update
+            session = TrainingSession.query.get(session_id)
+            if session and session.status == 'training':
                 session.status = 'completed'
                 session.progress = 100
                 session.completed_at = datetime.utcnow()
-                db.session.commit()
-                print(f"✅ Training completed for session {session_id}")
+                try:
+                    db.session.commit()
+                    print(f"✅ Training completed for session {session_id}")
+                except Exception as final_error:
+                    print(f"❌ Error completing training: {final_error}")
             
             active_training_session = None
             
     except Exception as e:
         print(f"❌ Training simulation error: {e}")
-        with app.app_context():
-            session = TrainingSession.query.get(session_id)
-            if session:
-                session.status = 'error'
-                db.session.commit()
         active_training_session = None
 
 # Create tables
@@ -186,7 +196,6 @@ with app.app_context():
         db.create_all()
         print("✅ Database tables created successfully!")
         
-        # Check existing songs without causing column errors
         try:
             existing_songs = Song.query.count()
             print(f"📊 Found {existing_songs} existing songs in database")
@@ -257,7 +266,7 @@ def upload_song():
             region=region,
             composer=composer if composer else None,
             poem_bahr=poem_bahr if poem_bahr else None,
-            file_size=file_size_mb  # Use existing column name
+            file_size=file_size_mb
         )
         
         try:
@@ -357,24 +366,26 @@ def start_training():
     global active_training_session, training_thread
     
     try:
+        print("=== TRAINING START REQUEST ===")
+        
         if active_training_session:
             return jsonify({'success': False, 'error': 'Training is already in progress'}), 400
         
-        data = request.get_json() or {}
-        
+        # Create MINIMAL training session
         session = TrainingSession(
             status='training',
-            progress=0,
-            epochs=data.get('epochs', 100),
-            learning_rate=data.get('learning_rate', 0.001),
-            batch_size=data.get('batch_size', 32)
+            progress=0
+            # Don't set optional fields that might cause constraint violations
         )
         
+        print("🧠 Creating training session...")
         db.session.add(session)
         db.session.commit()
+        print(f"✅ Training session created with ID: {session.id}")
         
         active_training_session = session.id
         
+        # Start background training thread
         training_thread = threading.Thread(
             target=simulate_training_progress, 
             args=(session.id,),
@@ -391,14 +402,18 @@ def start_training():
         })
         
     except Exception as e:
+        print(f"❌ Training start error: {e}")
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        active_training_session = None
+        return jsonify({'success': False, 'error': f'Failed to start training: {str(e)}'}), 500
 
 @app.route('/api/training/stop', methods=['POST'])
 def stop_training():
     global active_training_session
     
     try:
+        print("=== TRAINING STOP REQUEST ===")
+        
         session = TrainingSession.query.filter_by(status='training').first()
         if session:
             session.status = 'stopped'
@@ -413,6 +428,7 @@ def stop_training():
         else:
             return jsonify({'success': False, 'error': 'No active training session found'}), 400
     except Exception as e:
+        print(f"❌ Training stop error: {e}")
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
