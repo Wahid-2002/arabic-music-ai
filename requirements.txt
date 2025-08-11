@@ -3,19 +3,22 @@ Flask-SQLAlchemy==3.1.1
 Flask-CORS==4.0.0
 Werkzeug==3.0.1
 gunicorn==21.2.0
-psycopg2-binary==2.9.9
 
-# Audio processing libraries
+# Use psycopg2 (not psycopg2-binary) for Python 3.11 compatibility
+psycopg2>=2.9.0
+
+# Audio processing libraries - use compatible versions
 pydub==0.25.1
-librosa==0.11.0
-soundfile==0.13.1
-numpy==2.2.6
-scipy==1.16.0
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<2.0.0
 
-# AI and ML libraries
-openai==1.99.1
+# Use librosa with compatible dependencies
+librosa>=0.10.0,<0.11.0
+soundfile>=0.12.0
+
+# AI libraries - ensure compatibility
+openai>=1.0.0
 
 # Additional utilities
-requests==2.32.4
-python-dateutil==2.8.2
-
+requests>=2.31.0
+python-dateutil>=2.8.0
