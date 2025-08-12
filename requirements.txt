@@ -1,18 +1,14 @@
-Flask==3.0.0
-Flask-SQLAlchemy==3.1.1
+# Bulletproof requirements for Python 3.13 compatibility
+# Only using packages that are guaranteed to work
+
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
 Flask-CORS==4.0.0
-Werkzeug==3.0.1
-gunicorn==21.2.0
+Werkzeug==2.3.7
+gunicorn==20.1.0
 
-# Use pg8000 instead of psycopg2 - pure Python PostgreSQL adapter
-pg8000==1.30.3
+# No PostgreSQL adapter - use SQLite only for now
+# We'll add database support after successful deployment
 
-# Basic audio processing - minimal dependencies
-numpy==1.24.4
-
-# AI libraries
-openai==1.0.0
-
-# Additional utilities
+# Basic utilities only
 requests==2.31.0
-python-dateutil==2.8.2
