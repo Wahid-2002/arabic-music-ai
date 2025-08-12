@@ -22,9 +22,18 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 # Database configuration
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
+    # Replace postgres:// with postgresql+pg8000://
     if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
+    elif database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print("✅ Using PostgreSQL with pg8000 adapter - data will persist across deployments!")
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
+    print("✅ Using SQLite database for local development")
+
     print("✅ Using PostgreSQL database - data will persist across deployments!")
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///arabic_music_ai.db'
